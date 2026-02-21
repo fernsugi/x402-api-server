@@ -1,0 +1,19 @@
+{
+  "name": "x402-api-server",
+  "version": "1.0.0",
+  "description": "x402 protocol demo API server — pay-per-call crypto/DeFi data endpoints using HTTP 402 + USDC on Base",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "keywords": ["x402", "http-payment", "usdc", "base", "defi", "ai-agent", "crypto"],
+  "author": "Sugi",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "morgan": "^1.10.0"
+  }
+}

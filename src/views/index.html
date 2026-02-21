@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>x402 API Server — Pay-Per-Call DeFi Data</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── Design tokens ───────────────────────────────────────────────── */
+    :root {
+      --bg:        #060a0f;
+      --bg2:       #0c1118;
+      --bg3:       #111922;
+      --border:    #1a2535;
+      --green:     #00ff87;
+      --green-dim: #00cc6a;
+      --green-glow:#00ff8740;
+      --blue:      #00c8ff;
+      --blue-dim:  #0099cc;
+      --amber:     #ffb800;
+      --amber-dim: #cc9200;
+      --red:       #ff4466;
+      --text:      #c8d8e8;
+      --text-dim:  #607080;
+      --text-mute: #2a3848;
+      --font-mono: 'Share Tech Mono', 'Courier New', monospace;
+      --font-display: 'Orbitron', monospace;
+      --font-body: 'Space Grotesk', sans-serif;
+    }
+
+    /* ── Reset ───────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 15px;
+      line-height: 1.6;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* ── Grid background ─────────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--text-mute) 1px, transparent 1px),
+        linear-gradient(90deg, var(--text-mute) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.25;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Scanlines overlay ───────────────────────────────────────────── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0, 0, 0, 0.15) 2px,
+        rgba(0, 0, 0, 0.15) 4px
+      );
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* ── Canvas for matrix rain ──────────────────────────────────────── */
+    #matrix-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      opacity: 0.04;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ──────────────────────────────────────────────────────── */
+    .wrapper {
+      position: relative;
+      z-index: 2;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    /* ── Header / Hero ───────────────────────────────────────────────── */
+    header {
+      padding: 3.5rem 0 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .header-top {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 12px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 12px var(--green); }
+      50%       { opacity: 0.5; box-shadow: 0 0 4px var(--green); }
+    }
+
+    .system-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--green);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-size: clamp(2.8rem, 7vw, 5rem);
+      font-weight: 900;
+      color: var(--green);
+      letter-spacing: -0.02em;
+      line-height: 1;
+      text-shadow:
+        0 0 40px var(--green-glow),
+        0 0 80px rgba(0, 255, 135, 0.1);
+      position: relative;
+    }
+
+    .logo-sub {
+      font-family: var(--font-display);
+      font-size: clamp(0.9rem, 2vw, 1.1rem);
+      font-weight: 400;
+      color: var(--blue);
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      margin-top: 0.3rem;
+    }
+
+    .tagline {
+      font-size: 1.05rem;
+      color: var(--text-dim);
+      margin-top: 1.2rem;
+      max-width: 600px;
+      font-weight: 300;
+    }
+
+    .tagline strong { color: var(--text); font-weight: 500; }
+
+    .header-meta {
+      display: flex;
+      gap: 2rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .meta-item {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .meta-item span { color: var(--green); }
+
+    /* ── Protocol flow diagram ───────────────────────────────────────── */
+    .flow-section {
+      padding: 3rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+    }
+    .section-label::before { content: '// '; color: var(--green); }
+
+    .flow-steps {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+    }
+
+    .flow-step {
+      flex: 1;
+      min-width: 140px;
+      padding: 1.2rem 1rem;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    .flow-step:first-child { border-radius: 6px 0 0 6px; }
+    .flow-step:last-child  { border-radius: 0 6px 6px 0; }
+
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      flex-shrink: 0;
+      color: var(--green);
+      font-size: 1.2rem;
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .step-num {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      margin-bottom: 0.4rem;
+    }
+    .step-title {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--green);
+      margin-bottom: 0.3rem;
+    }
+    .step-desc {
+      font-size: 11px;
+      color: var(--text-dim);
+      line-height: 1.4;
+    }
+
+    /* ── Endpoint cards ──────────────────────────────────────────────── */
+    .endpoints-section {
+      padding: 3rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .endpoints-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    .endpoint-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .endpoint-card:hover {
+      border-color: var(--green-dim);
+      box-shadow: 0 0 20px rgba(0, 255, 135, 0.05);
+    }
+
+    .card-header {
+      padding: 1.2rem 1.4rem 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .card-method {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      background: rgba(0, 255, 135, 0.1);
+      color: var(--green);
+      padding: 2px 8px;
+      border-radius: 3px;
+      border: 1px solid var(--green-dim);
+      flex-shrink: 0;
+    }
+
+    .card-path {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      color: var(--blue);
+      flex: 1;
+    }
+
+    .card-price {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--amber);
+      text-align: right;
+      white-space: nowrap;
+    }
+    .card-price small { display: block; font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+    .card-body { padding: 1.2rem 1.4rem; }
+
+    .card-desc {
+      font-size: 13px;
+      color: var(--text-dim);
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .card-params { margin-bottom: 1rem; }
+    .params-label {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.4rem;
+    }
+    .param-row {
+      display: flex;
+      gap: 0.5rem;
+      align-items: baseline;
+      margin-bottom: 0.25rem;
+      font-size: 12px;
+    }
+    .param-name {
+      font-family: var(--font-mono);
+      color: var(--blue);
+      flex-shrink: 0;
+    }
+    .param-desc { color: var(--text-dim); }
+
+    /* ── Code snippet ────────────────────────────────────────────────── */
+    .code-block {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      overflow: hidden;
+      margin-top: 0.8rem;
+    }
+
+    .code-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0.8rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+    }
+    .code-lang {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .copy-btn {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 2px 8px;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .copy-btn:hover { color: var(--green); border-color: var(--green-dim); }
+    .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+    pre {
+      padding: 0.9rem 1rem;
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      color: var(--text);
+      overflow-x: auto;
+      line-height: 1.55;
+      white-space: pre;
+    }
+
+    .hl-key   { color: #a8d8ff; }
+    .hl-str   { color: #ffe0a0; }
+    .hl-num   { color: #b0f0b0; }
+    .hl-bool  { color: #ffd0a0; }
+    .hl-null  { color: var(--text-dim); }
+    .hl-green { color: var(--green); }
+    .hl-dim   { color: var(--text-dim); }
+
+    /* ── Try it section ──────────────────────────────────────────────── */
+    .try-section {
+      padding: 3rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .try-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-top: 1.5rem;
+    }
+
+    @media (max-width: 700px) {
+      .try-grid { grid-template-columns: 1fr; }
+    }
+
+    .try-panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .panel-title {
+      padding: 0.8rem 1.2rem;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-dim);
+      background: var(--bg3);
+    }
+
+    .request-display {
+      padding: 1rem 1.2rem;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+    }
+    .req-line { display: flex; gap: 0.8rem; margin-bottom: 0.3rem; align-items: baseline; }
+    .req-method { color: var(--green); font-weight: bold; }
+    .req-url    { color: var(--blue); }
+    .req-proto  { color: var(--text-dim); }
+    .req-header-key   { color: var(--text-dim); }
+    .req-header-value { color: var(--amber); }
+    .req-label  { color: var(--text-dim); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 0.8rem; margin-bottom: 0.4rem; }
+    .status-402 { color: var(--red); }
+    .status-200 { color: var(--green); }
+
+    /* ── Architecture note ───────────────────────────────────────────── */
+    .arch-section {
+      padding: 3rem 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .arch-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2rem;
+      margin-top: 1.5rem;
+    }
+    @media (max-width: 700px) { .arch-grid { grid-template-columns: 1fr; } }
+
+    .arch-block h3 {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--green);
+      margin-bottom: 0.8rem;
+    }
+
+    .arch-list {
+      list-style: none;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+    .arch-list li {
+      padding: 0.3rem 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 0.8rem;
+    }
+    .arch-list li:last-child { border-bottom: none; }
+    .arch-list li::before { content: '▸'; color: var(--green); flex-shrink: 0; }
+    .arch-list li strong { color: var(--text); }
+
+    /* ── Mock warning banner ─────────────────────────────────────────── */
+    .mock-banner {
+      background: rgba(255, 184, 0, 0.06);
+      border: 1px solid rgba(255, 184, 0, 0.25);
+      border-radius: 6px;
+      padding: 1rem 1.4rem;
+      margin: 2rem 0;
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+    }
+    .mock-icon { font-size: 1.2rem; flex-shrink: 0; }
+    .mock-text { font-size: 13px; color: var(--amber); line-height: 1.5; }
+    .mock-text strong { display: block; margin-bottom: 0.2rem; }
+    .mock-text code {
+      font-family: var(--font-mono);
+      background: rgba(255,184,0,0.1);
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 11px;
+    }
+
+    /* ── Footer ──────────────────────────────────────────────────────── */
+    footer {
+      padding: 2.5rem 0;
+      border-top: 1px solid var(--border);
+    }
+    .footer-inner {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+    .footer-brand {
+      font-family: var(--font-display);
+      font-size: 1.1rem;
+      color: var(--green-dim);
+    }
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .footer-links a {
+      color: var(--text-dim);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+    .footer-links a:hover { color: var(--green); }
+    .footer-note {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-mute);
+      margin-top: 1rem;
+      text-align: center;
+    }
+
+    /* ── Glitch animation on logo ────────────────────────────────────── */
+    @keyframes glitch1 {
+      0%, 90%, 100% { clip-path: none; transform: none; }
+      91% { clip-path: inset(20% 0 60% 0); transform: translate(-3px, 0); }
+      93% { clip-path: inset(60% 0 10% 0); transform: translate(3px, 0); }
+      95% { clip-path: inset(40% 0 30% 0); transform: translate(-2px, 0); }
+    }
+
+    .logo:hover { animation: glitch1 0.4s steps(1) both; }
+
+    /* ── Ticker animation for live feel ─────────────────────────────── */
+    .ticker-wrap {
+      overflow: hidden;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg2);
+      padding: 0.5rem 0;
+      margin: 1.5rem 0 0;
+    }
+    .ticker-inner {
+      display: flex;
+      gap: 3rem;
+      animation: ticker 30s linear infinite;
+      white-space: nowrap;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    @keyframes ticker {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+    .ticker-item { flex-shrink: 0; }
+    .ticker-item .sym { color: var(--text-dim); }
+    .ticker-item .price { color: var(--text); margin: 0 0.3rem; }
+    .ticker-item .up   { color: var(--green); }
+    .ticker-item .down { color: var(--red); }
+
+    /* ── Loading indicator ───────────────────────────────────────────── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid var(--border);
+      border-top-color: var(--green);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Live price display ──────────────────────────────────────────── */
+    #live-prices {
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.4rem 0;
+      border-bottom: 1px solid var(--border);
+      gap: 1rem;
+    }
+    .price-row:last-child { border-bottom: none; }
+    .price-sym { color: var(--text-dim); }
+    .price-val { color: var(--text); }
+    .price-chg.pos { color: var(--green); }
+    .price-chg.neg { color: var(--red); }
+
+    /* ── Responsive ──────────────────────────────────────────────────── */
+    @media (max-width: 600px) {
+      .flow-steps { flex-direction: column; }
+      .flow-arrow { transform: rotate(90deg); width: 100%; height: 24px; justify-content: center; }
+      .flow-step:first-child { border-radius: 6px 6px 0 0; }
+      .flow-step:last-child  { border-radius: 0 0 6px 6px; }
+      .flow-step:first-child { border-radius: 4px; }
+      .endpoints-grid { grid-template-columns: 1fr; }
+      .arch-grid { grid-template-columns: 1fr; }
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+<canvas id="matrix-canvas"></canvas>
+
+<div class="wrapper">
+
+  <!-- ── HEADER ──────────────────────────────────────────────────────── -->
+  <header>
+    <div class="header-top">
+      <div class="status-dot"></div>
+      <span class="system-label">System Online · Port 4020 · x402 Protocol v1</span>
+    </div>
+
+    <div class="logo">x402</div>
+    <div class="logo-sub">Pay-Per-Call DeFi API</div>
+
+    <p class="tagline">
+      HTTP-native micropayments for AI agents. <strong>No API keys. No subscriptions.</strong>
+      Agents pay <strong>USDC on Base</strong> per request — verified on-chain in ~200ms.
+    </p>
+
+    <div class="header-meta">
+      <div class="meta-item">NETWORK <span>Base (chain 8453)</span></div>
+      <div class="meta-item">ASSET <span>USDC · 6 decimals</span></div>
+      <div class="meta-item">ENDPOINTS <span>3 live</span></div>
+      <div class="meta-item">MIN PRICE <span>0.001 USDC</span></div>
+    </div>
+
+    <!-- Live ticker -->
+    <div class="ticker-wrap" id="ticker-wrap">
+      <div class="ticker-inner" id="ticker">
+        <span class="ticker-item"><span class="sym">BTC</span> <span class="price" id="t-btc">$—</span> <span class="up" id="t-btc-c">—</span></span>
+        <span class="ticker-item"><span class="sym">ETH</span> <span class="price" id="t-eth">$—</span> <span class="up" id="t-eth-c">—</span></span>
+        <span class="ticker-item"><span class="sym">SOL</span> <span class="price" id="t-sol">$—</span> <span class="up" id="t-sol-c">—</span></span>
+        <span class="ticker-item"><span class="sym">HYPE</span> <span class="price" id="t-hype">$—</span> <span class="up" id="t-hype-c">—</span></span>
+        <span class="ticker-item"><span class="sym">SUI</span> <span class="price" id="t-sui">$—</span> <span class="up" id="t-sui-c">—</span></span>
+        <!-- duplicated for seamless loop -->
+        <span class="ticker-item"><span class="sym">BTC</span> <span class="price" id="t-btc2">$—</span> <span class="up" id="t-btc-c2">—</span></span>
+        <span class="ticker-item"><span class="sym">ETH</span> <span class="price" id="t-eth2">$—</span> <span class="up" id="t-eth-c2">—</span></span>
+        <span class="ticker-item"><span class="sym">SOL</span> <span class="price" id="t-sol2">$—</span> <span class="up" id="t-sol-c2">—</span></span>
+        <span class="ticker-item"><span class="sym">HYPE</span> <span class="price" id="t-hype2">$—</span> <span class="up" id="t-hype-c2">—</span></span>
+        <span class="ticker-item"><span class="sym">SUI</span> <span class="price" id="t-sui2">$—</span> <span class="up" id="t-sui-c2">—</span></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── MOCK WARNING ─────────────────────────────────────────────────── -->
+  <div class="mock-banner">
+    <div class="mock-icon">⚠️</div>
+    <div class="mock-text">
+      <strong>PROTOTYPE / MOCK MODE</strong>
+      Payment verification is currently mocked — any non-empty <code>X-PAYMENT</code> header is accepted.
+      Real Base chain USDC verification is stubbed in <code>src/services/mockVerifier.js</code> with clear
+      instructions for wiring up ethers.js / Coinbase x402 Facilitator.
+    </div>
+  </div>
+
+  <!-- ── PROTOCOL FLOW ────────────────────────────────────────────────── -->
+  <section class="flow-section">
+    <div class="section-label">How x402 Works</div>
+
+    <div class="flow-steps">
+      <div class="flow-step">
+        <div class="step-num">01</div>
+        <div class="step-title">Request</div>
+        <div class="step-desc">Agent hits endpoint with no payment header</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-num">02</div>
+        <div class="step-title">402 Response</div>
+        <div class="step-desc">Server returns payment details: asset, amount, payTo address</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-num">03</div>
+        <div class="step-title">On-chain Tx</div>
+        <div class="step-desc">Agent sends USDC on Base, gets txHash</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-num">04</div>
+        <div class="step-title">Re-request</div>
+        <div class="step-desc">Agent retries with X-PAYMENT: &lt;txHash+sig&gt;</div>
+      </div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">
+        <div class="step-num">05</div>
+        <div class="step-title">Verify + Serve</div>
+        <div class="step-desc">Server verifies on-chain, returns data. ~200ms total.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ENDPOINTS ────────────────────────────────────────────────────── -->
+  <section class="endpoints-section">
+    <div class="section-label">Available Endpoints</div>
+    <div class="endpoints-grid">
+
+      <!-- Price Feed -->
+      <div class="endpoint-card">
+        <div class="card-header">
+          <div>
+            <div class="card-method">GET</div>
+            <div class="card-path" style="margin-top:0.4rem">/api/price-feed</div>
+          </div>
+          <div class="card-price">
+            0.001 USDC
+            <small>per call</small>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-desc">
+            Aggregated crypto prices: BTC, ETH, SOL + top 5 gainers/losers by 24h change.
+            Live data from CoinGecko with 60s server-side cache.
+          </div>
+          <div class="card-params">
+            <div class="params-label">Parameters</div>
+            <div class="param-row"><span class="param-name">—</span><span class="param-desc">No parameters required</span></div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Shell · No Payment (→ 402)</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre>curl http://localhost:4020/api/price-feed
+
+<span class="hl-dim"># Response 402:</span>
+{
+  <span class="hl-key">"x402Version"</span>: <span class="hl-num">1</span>,
+  <span class="hl-key">"accepts"</span>: [{
+    <span class="hl-key">"scheme"</span>: <span class="hl-str">"exact"</span>,
+    <span class="hl-key">"network"</span>: <span class="hl-str">"base"</span>,
+    <span class="hl-key">"maxAmountRequired"</span>: <span class="hl-str">"1000"</span>,
+    <span class="hl-key">"payTo"</span>: <span class="hl-str">"0x742d35..."</span>
+  }]
+}</pre>
+          </div>
+          <div class="code-block" style="margin-top:0.5rem">
+            <div class="code-header">
+              <span class="code-lang">Shell · With Payment (→ 200)</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre>curl http://localhost:4020/api/price-feed \
+  -H <span class="hl-str">"X-PAYMENT: any-value"</span></pre>
+          </div>
+          <div id="live-prices" style="margin-top:1rem">
+            <div style="font-size:11px;color:var(--text-dim);margin-bottom:0.5rem;font-family:var(--font-mono)">
+              LIVE PREVIEW <span class="spinner" id="price-spinner"></span>
+            </div>
+            <div class="price-row">
+              <span class="price-sym">BTC</span>
+              <span class="price-val" id="lp-btc">Loading…</span>
+              <span class="price-chg" id="lp-btc-c">—</span>
+            </div>
+            <div class="price-row">
+              <span class="price-sym">ETH</span>
+              <span class="price-val" id="lp-eth">Loading…</span>
+              <span class="price-chg" id="lp-eth-c">—</span>
+            </div>
+            <div class="price-row">
+              <span class="price-sym">SOL</span>
+              <span class="price-val" id="lp-sol">Loading…</span>
+              <span class="price-chg" id="lp-sol-c">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Whale Tracker -->
+      <div class="endpoint-card">
+        <div class="card-header">
+          <div>
+            <div class="card-method">GET</div>
+            <div class="card-path" style="margin-top:0.4rem">/api/whale-tracker</div>
+          </div>
+          <div class="card-price">
+            0.005 USDC
+            <small>per call</small>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-desc">
+            Token holder concentration analysis: whale distribution buckets, Gini coefficient,
+            Herfindahl index, top 20 holders, and recent large transfer alerts.
+          </div>
+          <div class="card-params">
+            <div class="params-label">Parameters</div>
+            <div class="param-row"><span class="param-name">?token</span><span class="param-desc">Token symbol (default: ETH)</span></div>
+            <div class="param-row"><span class="param-name">?chain</span><span class="param-desc">ethereum | base | solana | arbitrum</span></div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Example Response</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre>{
+  <span class="hl-key">"data"</span>: {
+    <span class="hl-key">"token"</span>: <span class="hl-str">"ETH"</span>,
+    <span class="hl-key">"holder_count"</span>: <span class="hl-num">1250000</span>,
+    <span class="hl-key">"concentration_metrics"</span>: {
+      <span class="hl-key">"top_10_pct"</span>: <span class="hl-num">38.2</span>,
+      <span class="hl-key">"gini_coefficient"</span>: <span class="hl-num">0.74</span>,
+      <span class="hl-key">"herfindahl_index"</span>: <span class="hl-num">0.021</span>
+    },
+    <span class="hl-key">"top_holders"</span>: [
+      { <span class="hl-key">"rank"</span>: <span class="hl-num">1</span>, <span class="hl-key">"label"</span>: <span class="hl-str">"Binance Hot Wallet"</span>,
+        <span class="hl-key">"percentage"</span>: <span class="hl-num">12.4</span>, <span class="hl-key">"wallet_type"</span>: <span class="hl-str">"exchange"</span> }
+    ]
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Funding Rates -->
+      <div class="endpoint-card">
+        <div class="card-header">
+          <div>
+            <div class="card-method">GET</div>
+            <div class="card-path" style="margin-top:0.4rem">/api/funding-rates</div>
+          </div>
+          <div class="card-price">
+            0.008 USDC
+            <small>per call</small>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-desc">
+            Perpetual futures funding rate comparison across Hyperliquid, dYdX v4, Aevo, GMX,
+            Drift, and Vertex. Includes automated arb opportunity ranking with signal strength.
+          </div>
+          <div class="card-params">
+            <div class="params-label">Parameters</div>
+            <div class="param-row"><span class="param-name">?asset</span><span class="param-desc">BTC | ETH | SOL | SUI | … (default: all)</span></div>
+            <div class="param-row"><span class="param-name">?min_spread</span><span class="param-desc">Min arb spread in bps to include</span></div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Example Response (arb_opportunities)</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre>[{
+  <span class="hl-key">"asset"</span>: <span class="hl-str">"SOL"</span>,
+  <span class="hl-key">"long_venue"</span>: <span class="hl-str">"gmx"</span>,
+  <span class="hl-key">"long_rate"</span>: <span class="hl-num">0.000082</span>,
+  <span class="hl-key">"short_venue"</span>: <span class="hl-str">"drift"</span>,
+  <span class="hl-key">"short_rate"</span>: <span class="hl-num">0.000198</span>,
+  <span class="hl-key">"spread_bps"</span>: <span class="hl-num">3.8</span>,
+  <span class="hl-key">"annualized_arb_pct"</span>: <span class="hl-num">51.6</span>,
+  <span class="hl-key">"signal"</span>: <span class="hl-str"><span class="hl-green">"STRONG"</span></span>
+}]</pre>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── TRY IT ────────────────────────────────────────────────────────── -->
+  <section class="try-section">
+    <div class="section-label">Try It — Request/Response Flow</div>
+    <div class="try-grid">
+      <div class="try-panel">
+        <div class="panel-title">Step 1 — No Payment Header</div>
+        <div class="request-display">
+          <div class="req-label">Request</div>
+          <div class="req-line">
+            <span class="req-method">GET</span>
+            <span class="req-url">http://localhost:4020/api/price-feed</span>
+            <span class="req-proto">HTTP/1.1</span>
+          </div>
+          <div class="req-label" style="margin-top:1rem">Response <span class="status-402">402 Payment Required</span></div>
+          <div class="code-block" style="margin-top:0.5rem">
+            <pre style="font-size:10.5px">{
+  <span class="hl-key">"x402Version"</span>: <span class="hl-num">1</span>,
+  <span class="hl-key">"error"</span>: <span class="hl-str">"Payment Required"</span>,
+  <span class="hl-key">"accepts"</span>: [{
+    <span class="hl-key">"scheme"</span>: <span class="hl-str">"exact"</span>,
+    <span class="hl-key">"network"</span>: <span class="hl-str">"base"</span>,
+    <span class="hl-key">"asset"</span>: <span class="hl-str">"0x833589fC..."</span>,
+    <span class="hl-key">"payTo"</span>: <span class="hl-str">"0x742d35Cc..."</span>,
+    <span class="hl-key">"maxAmountRequired"</span>: <span class="hl-str">"1000"</span>,
+    <span class="hl-key">"extra"</span>: { <span class="hl-key">"chainId"</span>: <span class="hl-num">8453</span> }
+  }]
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="try-panel">
+        <div class="panel-title">Step 2 — With X-PAYMENT Header</div>
+        <div class="request-display">
+          <div class="req-label">Request</div>
+          <div class="req-line">
+            <span class="req-method">GET</span>
+            <span class="req-url">http://localhost:4020/api/price-feed</span>
+            <span class="req-proto">HTTP/1.1</span>
+          </div>
+          <div class="req-line">
+            <span class="req-header-key">X-Payment:</span>
+            <span class="req-header-value">eyJ0eEhhc2giOiIweGFi...</span>
+          </div>
+          <div class="req-label" style="margin-top:1rem">Response <span class="status-200">200 OK</span></div>
+          <div class="code-block" style="margin-top:0.5rem">
+            <pre style="font-size:10.5px">{
+  <span class="hl-key">"timestamp"</span>: <span class="hl-str">"2026-02-21T08:00:00Z"</span>,
+  <span class="hl-key">"source"</span>: <span class="hl-str">"CoinGecko"</span>,
+  <span class="hl-key">"payment"</span>: {
+    <span class="hl-key">"verified"</span>: <span class="hl-bool">true</span>,
+    <span class="hl-key">"txHash"</span>: <span class="hl-str">"0xabc123..."</span>
+  },
+  <span class="hl-key">"data"</span>: {
+    <span class="hl-key">"core"</span>: [
+      { <span class="hl-key">"id"</span>: <span class="hl-str">"bitcoin"</span>,
+        <span class="hl-key">"price_usd"</span>: <span class="hl-num">98000</span> }
+    ]
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ARCHITECTURE ──────────────────────────────────────────────────── -->
+  <section class="arch-section">
+    <div class="section-label">Architecture &amp; Extending</div>
+    <div class="arch-grid">
+      <div class="arch-block">
+        <h3>Current Stack</h3>
+        <ul class="arch-list">
+          <li><strong>Express.js</strong> — HTTP server, port 4020</li>
+          <li><strong>x402 Middleware</strong> — src/middleware/x402.js</li>
+          <li><strong>Mock Verifier</strong> — src/services/mockVerifier.js</li>
+          <li><strong>CoinGecko API</strong> — live price data, 60s cache</li>
+          <li><strong>CORS + Morgan</strong> — logging &amp; cross-origin</li>
+        </ul>
+      </div>
+      <div class="arch-block">
+        <h3>To Make It Real (Production)</h3>
+        <ul class="arch-list">
+          <li>Replace <code style="font-family:var(--font-mono);font-size:11px;color:var(--blue)">mockVerifier.js</code> with ethers.js Base RPC call</li>
+          <li>Verify USDC tx to your <code style="font-family:var(--font-mono);font-size:11px;color:var(--blue)">payTo</code> address on Base</li>
+          <li>Add Redis/DB for replay attack protection (store used txHashes)</li>
+          <li>Wire up Moralis/Alchemy for real whale tracker data</li>
+          <li>Call real protocol APIs for funding rates (Hyperliquid, dYdX)</li>
+          <li>Register ERC-8004 agent identity on Base for discoverability</li>
+          <li>List on Apiosk for instant AI agent discovery</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ────────────────────────────────────────────────────────── -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-brand">x402</div>
+      <div class="footer-links">
+        <a href="/health">Health</a>
+        <a href="/api/endpoints">Catalog (JSON)</a>
+        <a href="https://github.com/coinbase/x402" target="_blank" rel="noopener">x402 Spec ↗</a>
+        <a href="https://apiosk.com" target="_blank" rel="noopener">Apiosk ↗</a>
+      </div>
+    </div>
+    <div class="footer-note">
+      ⚠️ PROTOTYPE · Payment verification is mocked ·
+      Network: Base (8453) · Asset: USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+    </div>
+  </footer>
+
+</div><!-- /wrapper -->
+
+<script>
+/* ── Matrix rain background ──────────────────────────────────────────── */
+(function() {
+  const canvas = document.getElementById('matrix-canvas');
+  const ctx = canvas.getContext('2d');
+  let cols, drops;
+
+  function init() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    cols = Math.floor(canvas.width / 20);
+    drops = Array(cols).fill(1);
+  }
+
+  function draw() {
+    ctx.fillStyle = 'rgba(6,10,15,0.05)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#00ff87';
+    ctx.font = '14px Share Tech Mono, monospace';
+
+    const chars = '0123456789ABCDEFabcdef$₿⟠◎ΞΨΔ∑∞≡±×÷';
+    for (let i = 0; i < cols; i++) {
+      const c = chars[Math.floor(Math.random() * chars.length)];
+      ctx.fillText(c, i * 20, drops[i] * 20);
+      if (drops[i] * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      drops[i]++;
+    }
+  }
+
+  init();
+  window.addEventListener('resize', init);
+  setInterval(draw, 50);
+})();
+
+/* ── Copy button ─────────────────────────────────────────────────────── */
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText || pre.textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+/* ── Live price fetch ────────────────────────────────────────────────── */
+function fmt(n) {
+  if (!n && n !== 0) return '—';
+  if (n > 10000) return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (n > 1)     return '$' + n.toFixed(2);
+  return '$' + n.toFixed(4);
+}
+function fmtChg(n) {
+  if (n == null) return { text: '—', cls: '' };
+  const sign = n >= 0 ? '+' : '';
+  return { text: sign + n.toFixed(2) + '%', cls: n >= 0 ? 'pos' : 'neg' };
+}
+
+async function loadLivePrices() {
+  try {
+    const r = await fetch('/api/price-feed', { headers: { 'X-Payment': 'landing-page-preview' } });
+    const j = await r.json();
+
+    if (!j.data) return;
+    const core = j.data.core || [];
+
+    const map = {};
+    for (const c of core) map[c.id] = c;
+
+    // Full price section
+    const set = (idEl, valEl, chgEl, id) => {
+      const d = map[id];
+      if (!d) return;
+      document.getElementById(valEl).textContent = fmt(d.price_usd);
+      const chg = fmtChg(d.change_24h_pct);
+      const el = document.getElementById(chgEl);
+      el.textContent = chg.text;
+      el.className = 'price-chg ' + chg.cls;
+    };
+    set(null, 'lp-btc', 'lp-btc-c', 'bitcoin');
+    set(null, 'lp-eth', 'lp-eth-c', 'ethereum');
+    set(null, 'lp-sol', 'lp-sol-c', 'solana');
+
+    document.getElementById('price-spinner').style.display = 'none';
+
+    // Ticker
+    const tickerMap = {
+      'bitcoin': ['t-btc','t-btc-c','t-btc2','t-btc-c2'],
+      'ethereum': ['t-eth','t-eth-c','t-eth2','t-eth-c2'],
+      'solana': ['t-sol','t-sol-c','t-sol2','t-sol-c2'],
+    };
+
+    // Top movers for ticker
+    const gainers = j.data.top_movers?.gainers || [];
+    const hypeData = gainers[0];
+    const suiData = gainers[1];
+
+    for (const [id, [vid, cid, vid2, cid2]] of Object.entries(tickerMap)) {
+      const d = map[id];
+      if (!d) continue;
+      const chg = fmtChg(d.change_24h_pct);
+      document.getElementById(vid).textContent = fmt(d.price_usd);
+      document.getElementById(cid).textContent = chg.text;
+      document.getElementById(cid).className = chg.cls;
+      document.getElementById(vid2).textContent = fmt(d.price_usd);
+      document.getElementById(cid2).textContent = chg.text;
+      document.getElementById(cid2).className = chg.cls;
+    }
+
+    if (hypeData) {
+      document.getElementById('t-hype').textContent = fmt(hypeData.price_usd);
+      document.getElementById('t-hype-c').textContent = fmtChg(hypeData.change_24h_pct).text;
+      document.getElementById('t-hype2').textContent = fmt(hypeData.price_usd);
+      document.getElementById('t-hype-c2').textContent = fmtChg(hypeData.change_24h_pct).text;
+    }
+    if (suiData) {
+      document.getElementById('t-sui').textContent = fmt(suiData.price_usd);
+      document.getElementById('t-sui-c').textContent = fmtChg(suiData.change_24h_pct).text;
+      document.getElementById('t-sui2').textContent = fmt(suiData.price_usd);
+      document.getElementById('t-sui-c2').textContent = fmtChg(suiData.change_24h_pct).text;
+    }
+
+  } catch (e) {
+    console.warn('[x402] price fetch failed:', e.message);
+    document.getElementById('lp-btc').textContent = 'unavailable';
+    document.getElementById('lp-eth').textContent = 'unavailable';
+    document.getElementById('lp-sol').textContent = 'unavailable';
+    document.getElementById('price-spinner').style.display = 'none';
+  }
+}
+
+// Load prices on mount and refresh every 60s
+loadLivePrices();
+setInterval(loadLivePrices, 60_000);
+</script>
+
+</body>
+</html>
