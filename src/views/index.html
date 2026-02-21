@@ -644,7 +644,7 @@
     <div class="header-meta">
       <div class="meta-item">NETWORK <span>Base (chain 8453)</span></div>
       <div class="meta-item">ASSET <span>USDC · 6 decimals</span></div>
-      <div class="meta-item">ENDPOINTS <span>3 live</span></div>
+      <div class="meta-item">ENDPOINTS <span>8 live</span></div>
       <div class="meta-item">MIN PRICE <span>0.001 USDC</span></div>
     </div>
 
@@ -871,6 +871,222 @@
   <span class="hl-key">"annualized_arb_pct"</span>: <span class="hl-num">51.6</span>,
   <span class="hl-key">"signal"</span>: <span class="hl-str"><span class="hl-green">"STRONG"</span></span>
 }]</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gas Tracker -->
+      <div class="endpoint-card">
+        <div class="card-header">
+          <div>
+            <div class="card-method">GET</div>
+            <div class="card-path" style="margin-top:0.4rem">/api/gas-tracker</div>
+          </div>
+          <div class="card-price">
+            0.001 USDC
+            <small>per call</small>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-desc">
+            Current gas prices across Ethereum, Base, Polygon, and Arbitrum.
+            Includes slow/normal/fast tiers and estimated USD costs for transfers, swaps, and NFT mints.
+          </div>
+          <div class="card-params">
+            <div class="params-label">Parameters</div>
+            <div class="param-row"><span class="param-name">—</span><span class="param-desc">No parameters required</span></div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Example Response</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre>{
+  <span class="hl-key">"data"</span>: {
+    <span class="hl-key">"ethereum"</span>: {
+      <span class="hl-key">"gas_price_gwei"</span>: {
+        <span class="hl-key">"slow"</span>: <span class="hl-num">22.4</span>,
+        <span class="hl-key">"normal"</span>: <span class="hl-num">28.0</span>,
+        <span class="hl-key">"fast"</span>: <span class="hl-num">39.2</span>
+      },
+      <span class="hl-key">"estimated_cost_usd"</span>: {
+        <span class="hl-key">"swap"</span>: { <span class="hl-key">"normal"</span>: <span class="hl-num">11.55</span> }
+      }
+    }
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Token Scanner -->
+      <div class="endpoint-card">
+        <div class="card-header">
+          <div>
+            <div class="card-method">GET</div>
+            <div class="card-path" style="margin-top:0.4rem">/api/token-scanner</div>
+          </div>
+          <div class="card-price">
+            0.003 USDC
+            <small>per call</small>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-desc">
+            Token security &amp; risk analysis for rug-pull detection. Returns contract info,
+            holder stats, liquidity, and risk flags including honeypot detection and mint function checks.
+          </div>
+          <div class="card-params">
+            <div class="params-label">Parameters</div>
+            <div class="param-row"><span class="param-name">?token</span><span class="param-desc">Token symbol or address (default: PEPE)</span></div>
+            <div class="param-row"><span class="param-name">?chain</span><span class="param-desc">ethereum | base | arbitrum | polygon</span></div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Example Response</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre>{
+  <span class="hl-key">"data"</span>: {
+    <span class="hl-key">"symbol"</span>: <span class="hl-str">"PEPE"</span>,
+    <span class="hl-key">"risk_score"</span>: <span class="hl-num">15</span>,
+    <span class="hl-key">"risk_level"</span>: <span class="hl-str">"LOW"</span>,
+    <span class="hl-key">"risk_flags"</span>: {
+      <span class="hl-key">"is_verified"</span>: <span class="hl-bool">true</span>,
+      <span class="hl-key">"honeypot_risk"</span>: <span class="hl-bool">false</span>,
+      <span class="hl-key">"has_mint_function"</span>: <span class="hl-bool">false</span>,
+      <span class="hl-key">"liquidity_locked"</span>: <span class="hl-bool">true</span>
+    }
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- DEX Quotes -->
+      <div class="endpoint-card">
+        <div class="card-header">
+          <div>
+            <div class="card-method">GET</div>
+            <div class="card-path" style="margin-top:0.4rem">/api/dex-quotes</div>
+          </div>
+          <div class="card-price">
+            0.002 USDC
+            <small>per call</small>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-desc">
+            Compare swap quotes across Uniswap V3, SushiSwap, and 1inch Aggregator.
+            Returns price impact, fees, output amounts, and best route recommendation.
+          </div>
+          <div class="card-params">
+            <div class="params-label">Parameters</div>
+            <div class="param-row"><span class="param-name">?from</span><span class="param-desc">Input token symbol (default: ETH)</span></div>
+            <div class="param-row"><span class="param-name">?to</span><span class="param-desc">Output token symbol (default: USDC)</span></div>
+            <div class="param-row"><span class="param-name">?amount</span><span class="param-desc">Input amount (default: 1)</span></div>
+            <div class="param-row"><span class="param-name">?chain</span><span class="param-desc">ethereum | base | arbitrum | polygon</span></div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Example Response</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre>{
+  <span class="hl-key">"data"</span>: {
+    <span class="hl-key">"pair"</span>: <span class="hl-str">"ETH/USDC"</span>,
+    <span class="hl-key">"best_dex"</span>: <span class="hl-str">"1inch"</span>,
+    <span class="hl-key">"best_output"</span>: <span class="hl-num">2748.50</span>,
+    <span class="hl-key">"recommendation"</span>: {
+      <span class="hl-key">"dex"</span>: <span class="hl-str">"1inch Aggregator"</span>,
+      <span class="hl-key">"total_cost_usd"</span>: <span class="hl-num">8.50</span>
+    }
+  }
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Yield Scanner -->
+      <div class="endpoint-card">
+        <div class="card-header">
+          <div>
+            <div class="card-method">GET</div>
+            <div class="card-path" style="margin-top:0.4rem">/api/yield-scanner</div>
+          </div>
+          <div class="card-price">
+            0.005 USDC
+            <small>per call</small>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-desc">
+            Top DeFi yields across Aave, Compound, Morpho, Lido, Pendle, Ethena, and more.
+            Sorted by APY with risk tier classification and TVL data.
+          </div>
+          <div class="card-params">
+            <div class="params-label">Parameters</div>
+            <div class="param-row"><span class="param-name">?chain</span><span class="param-desc">ethereum | base | arbitrum | polygon | all</span></div>
+            <div class="param-row"><span class="param-name">?min_tvl</span><span class="param-desc">Minimum TVL in USD (default: 0)</span></div>
+            <div class="param-row"><span class="param-name">?asset</span><span class="param-desc">Filter by asset symbol</span></div>
+            <div class="param-row"><span class="param-name">?limit</span><span class="param-desc">Max results (default: 20, max: 50)</span></div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Example Response</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre>{
+  <span class="hl-key">"data"</span>: [{
+    <span class="hl-key">"protocol"</span>: <span class="hl-str">"Ethena"</span>,
+    <span class="hl-key">"asset"</span>: <span class="hl-str">"sUSDe"</span>,
+    <span class="hl-key">"apy"</span>: <span class="hl-num">18.5</span>,
+    <span class="hl-key">"tvl"</span>: <span class="hl-num">5600000000</span>,
+    <span class="hl-key">"risk_tier"</span>: <span class="hl-str">"high"</span>,
+    <span class="hl-key">"chain"</span>: <span class="hl-str">"ethereum"</span>
+  }]
+}</pre>
+          </div>
+        </div>
+      </div>
+
+      <!-- Wallet Profiler -->
+      <div class="endpoint-card">
+        <div class="card-header">
+          <div>
+            <div class="card-method">GET</div>
+            <div class="card-path" style="margin-top:0.4rem">/api/wallet-profiler</div>
+          </div>
+          <div class="card-price">
+            0.008 USDC
+            <small>per call</small>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="card-desc">
+            Wallet portfolio analysis: holdings breakdown, DeFi positions, activity metrics,
+            and risk profile classification. Used by agents for wallet intelligence.
+          </div>
+          <div class="card-params">
+            <div class="params-label">Parameters</div>
+            <div class="param-row"><span class="param-name">?address</span><span class="param-desc">Ethereum address (0x…)</span></div>
+            <div class="param-row"><span class="param-name">?chain</span><span class="param-desc">ethereum | base | arbitrum | polygon | all</span></div>
+          </div>
+          <div class="code-block">
+            <div class="code-header">
+              <span class="code-lang">Example Response</span>
+              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <pre>{
+  <span class="hl-key">"data"</span>: {
+    <span class="hl-key">"label"</span>: <span class="hl-str">"vitalik.eth"</span>,
+    <span class="hl-key">"total_value_usd"</span>: <span class="hl-num">12500000</span>,
+    <span class="hl-key">"risk_profile"</span>: {
+      <span class="hl-key">"classification"</span>: <span class="hl-str">"aggressive"</span>,
+      <span class="hl-key">"diversification_score"</span>: <span class="hl-num">8</span>
+    }
+  }
+}</pre>
           </div>
         </div>
       </div>

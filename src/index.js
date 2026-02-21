@@ -9,6 +9,11 @@
  *   GET /api/price-feed      → Aggregated crypto prices (0.001 USDC)
  *   GET /api/whale-tracker   → Token holder concentration (0.005 USDC)
  *   GET /api/funding-rates   → Perp funding rate arb scanner (0.008 USDC)
+ *   GET /api/gas-tracker     → Multi-chain gas prices (0.001 USDC)
+ *   GET /api/token-scanner   → Token security & risk analysis (0.003 USDC)
+ *   GET /api/dex-quotes      → DEX swap quote comparison (0.002 USDC)
+ *   GET /api/yield-scanner   → Top DeFi yields (0.005 USDC)
+ *   GET /api/wallet-profiler → Wallet portfolio analysis (0.008 USDC)
  *   GET /health              → Health check (free)
  *   GET /api/endpoints       → Machine-readable endpoint catalog (free)
  */
@@ -25,6 +30,11 @@ const path = require('path');
 const priceFeedRouter = require('./routes/priceFeed');
 const whaleTrackerRouter = require('./routes/whaleTracker');
 const fundingRatesRouter = require('./routes/fundingRates');
+const gasTrackerRouter = require('./routes/gasTracker');
+const tokenScannerRouter = require('./routes/tokenScanner');
+const dexQuotesRouter = require('./routes/dexQuotes');
+const yieldScannerRouter = require('./routes/yieldScanner');
+const walletProfilerRouter = require('./routes/walletProfiler');
 const { PAY_TO_ADDRESS } = require('./middleware/x402');
 
 const app = express();
@@ -55,6 +65,11 @@ app.use((req, res, next) => {
 app.use('/api/price-feed', priceFeedRouter);
 app.use('/api/whale-tracker', whaleTrackerRouter);
 app.use('/api/funding-rates', fundingRatesRouter);
+app.use('/api/gas-tracker', gasTrackerRouter);
+app.use('/api/token-scanner', tokenScannerRouter);
+app.use('/api/dex-quotes', dexQuotesRouter);
+app.use('/api/yield-scanner', yieldScannerRouter);
+app.use('/api/wallet-profiler', walletProfilerRouter);
 
 // ── Free Routes ──────────────────────────────────────────────────────────────
 
@@ -107,6 +122,61 @@ app.get('/api/endpoints', (req, res) => {
         params: [
           { name: 'asset', default: 'all' },
           { name: 'min_spread', default: 0 },
+        ],
+      },
+      {
+        path: '/api/gas-tracker',
+        method: 'GET',
+        description: 'Gas prices across Ethereum, Base, Polygon, Arbitrum with speed tiers and USD cost estimates.',
+        price_usdc: 0.001,
+        price_micro: 1000,
+      },
+      {
+        path: '/api/token-scanner',
+        method: 'GET',
+        description: 'Token security & risk analysis: contract verification, holder stats, liquidity, rug-pull risk flags.',
+        price_usdc: 0.003,
+        price_micro: 3000,
+        params: [
+          { name: 'token', default: 'PEPE' },
+          { name: 'chain', default: 'ethereum' },
+        ],
+      },
+      {
+        path: '/api/dex-quotes',
+        method: 'GET',
+        description: 'Compare swap quotes across Uniswap, SushiSwap, 1inch with price impact and route optimization.',
+        price_usdc: 0.002,
+        price_micro: 2000,
+        params: [
+          { name: 'from', default: 'ETH' },
+          { name: 'to', default: 'USDC' },
+          { name: 'amount', default: 1 },
+          { name: 'chain', default: 'ethereum' },
+        ],
+      },
+      {
+        path: '/api/yield-scanner',
+        method: 'GET',
+        description: 'Top DeFi yields across Aave, Compound, Morpho, Lido, Pendle, Ethena. Filter by chain, asset, TVL.',
+        price_usdc: 0.005,
+        price_micro: 5000,
+        params: [
+          { name: 'chain', default: 'all' },
+          { name: 'min_tvl', default: 0 },
+          { name: 'asset', default: 'all' },
+          { name: 'limit', default: 20 },
+        ],
+      },
+      {
+        path: '/api/wallet-profiler',
+        method: 'GET',
+        description: 'Wallet portfolio analysis: holdings, DeFi positions, activity metrics, risk profile.',
+        price_usdc: 0.008,
+        price_micro: 8000,
+        params: [
+          { name: 'address', default: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+          { name: 'chain', default: 'all' },
         ],
       },
     ],
@@ -165,6 +235,11 @@ server = app.listen(PORT, () => {
   console.log(`    /api/price-feed      → 0.001 USDC`);
   console.log(`    /api/whale-tracker   → 0.005 USDC`);
   console.log(`    /api/funding-rates   → 0.008 USDC`);
+  console.log(`    /api/gas-tracker     → 0.001 USDC`);
+  console.log(`    /api/token-scanner   → 0.003 USDC`);
+  console.log(`    /api/dex-quotes      → 0.002 USDC`);
+  console.log(`    /api/yield-scanner   → 0.005 USDC`);
+  console.log(`    /api/wallet-profiler → 0.008 USDC`);
   console.log('');
   console.log(`  Receiving: ${PAY_TO_ADDRESS}`);
   console.log(`  Network: Base mainnet (chain ID 8453)`);

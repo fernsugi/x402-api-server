@@ -25,6 +25,11 @@
 | `GET /api/price-feed` | **0.001 USDC** | BTC/ETH/SOL prices + top 24h movers (live CoinGecko) |
 | `GET /api/whale-tracker` | **0.005 USDC** | Token holder concentration, Gini coefficient, whale alerts |
 | `GET /api/funding-rates` | **0.008 USDC** | Perp funding rates across 6 venues + arb ranking |
+| `GET /api/gas-tracker` | **0.001 USDC** | Multi-chain gas prices (ETH, Base, Polygon, Arbitrum) with speed tiers |
+| `GET /api/token-scanner` | **0.003 USDC** | Token security & risk analysis — rug-pull detection flags |
+| `GET /api/dex-quotes` | **0.002 USDC** | Compare swap quotes across Uniswap, SushiSwap, 1inch |
+| `GET /api/yield-scanner` | **0.005 USDC** | Top DeFi yields across Aave, Compound, Morpho, Lido, Pendle + more |
+| `GET /api/wallet-profiler` | **0.008 USDC** | Wallet portfolio analysis, holdings, activity, risk profile |
 | `GET /api/endpoints` | **Free** | Machine-readable endpoint catalog |
 | `GET /health` | **Free** | Health check |
 
@@ -112,7 +117,12 @@ src/
 ├── routes/
 │   ├── priceFeed.js         # /api/price-feed (live CoinGecko data)
 │   ├── whaleTracker.js      # /api/whale-tracker (mock data)
-│   └── fundingRates.js      # /api/funding-rates (mock data)
+│   ├── fundingRates.js      # /api/funding-rates (mock data)
+│   ├── gasTracker.js        # /api/gas-tracker (real RPC + mock fallback)
+│   ├── tokenScanner.js      # /api/token-scanner (mock data)
+│   ├── dexQuotes.js         # /api/dex-quotes (mock data)
+│   ├── yieldScanner.js      # /api/yield-scanner (mock data)
+│   └── walletProfiler.js    # /api/wallet-profiler (mock data)
 ├── services/
 │   ├── verifier.js          # Production payment verifier (EIP-3009 + tx hash)
 │   └── mockVerifier.js      # Legacy mock (kept for reference)
