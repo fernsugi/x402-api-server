@@ -7,12 +7,22 @@
     "start": "node src/index.js",
     "dev": "node --watch src/index.js"
   },
-  "keywords": ["x402", "http-payment", "usdc", "base", "defi", "ai-agent", "crypto"],
+  "keywords": [
+    "x402",
+    "http-payment",
+    "usdc",
+    "base",
+    "defi",
+    "ai-agent",
+    "crypto"
+  ],
   "author": "Sugi",
   "license": "MIT",
   "dependencies": {
     "axios": "^1.7.9",
     "cors": "^2.8.5",
+    "dotenv": "^17.3.1",
+    "ethers": "^6.16.0",
     "express": "^4.21.2",
     "morgan": "^1.10.0"
   }

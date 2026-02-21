@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  x402-api:
+    build: .
+    ports:
+      - '4020:4020'
+    environment:
+      - NODE_ENV=production
+      - PORT=4020
+      - PAY_TO_ADDRESS=0x60264c480b67adb557efEd22Cf0e7ceA792DefB7
+      - BASE_RPC_URL=https://mainnet.base.org
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:4020/health']
+      interval: 30s
+      timeout: 3s
+      retries: 3

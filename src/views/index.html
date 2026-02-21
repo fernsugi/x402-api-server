@@ -666,14 +666,13 @@
     </div>
   </header>
 
-  <!-- ── MOCK WARNING ─────────────────────────────────────────────────── -->
-  <div class="mock-banner">
-    <div class="mock-icon">⚠️</div>
-    <div class="mock-text">
-      <strong>PROTOTYPE / MOCK MODE</strong>
-      Payment verification is currently mocked — any non-empty <code>X-PAYMENT</code> header is accepted.
-      Real Base chain USDC verification is stubbed in <code>src/services/mockVerifier.js</code> with clear
-      instructions for wiring up ethers.js / Coinbase x402 Facilitator.
+  <!-- ── PAYMENT INFO ──────────────────────────────────────────────────── -->
+  <div class="mock-banner" style="border-color: rgba(0, 255, 135, 0.25); background: rgba(0, 255, 135, 0.04);">
+    <div class="mock-icon">💰</div>
+    <div class="mock-text" style="color: var(--green);">
+      <strong>LIVE — Accepting USDC Payments on Base</strong>
+      Pay-to address: <code>0x60264c480b67adb557efEd22Cf0e7ceA792DefB7</code><br>
+      Network: Base mainnet (chain ID 8453) · Asset: USDC · Protocol: x402 with EIP-3009
     </div>
   </div>
 
@@ -754,7 +753,7 @@
     <span class="hl-key">"scheme"</span>: <span class="hl-str">"exact"</span>,
     <span class="hl-key">"network"</span>: <span class="hl-str">"base"</span>,
     <span class="hl-key">"maxAmountRequired"</span>: <span class="hl-str">"1000"</span>,
-    <span class="hl-key">"payTo"</span>: <span class="hl-str">"0x742d35..."</span>
+    <span class="hl-key">"payTo"</span>: <span class="hl-str">"0x60264c..."</span>
   }]
 }</pre>
           </div>
@@ -901,7 +900,7 @@
     <span class="hl-key">"scheme"</span>: <span class="hl-str">"exact"</span>,
     <span class="hl-key">"network"</span>: <span class="hl-str">"base"</span>,
     <span class="hl-key">"asset"</span>: <span class="hl-str">"0x833589fC..."</span>,
-    <span class="hl-key">"payTo"</span>: <span class="hl-str">"0x742d35Cc..."</span>,
+    <span class="hl-key">"payTo"</span>: <span class="hl-str">"0x60264c48..."</span>,
     <span class="hl-key">"maxAmountRequired"</span>: <span class="hl-str">"1000"</span>,
     <span class="hl-key">"extra"</span>: { <span class="hl-key">"chainId"</span>: <span class="hl-num">8453</span> }
   }]
@@ -986,8 +985,7 @@
       </div>
     </div>
     <div class="footer-note">
-      ⚠️ PROTOTYPE · Payment verification is mocked ·
-      Network: Base (8453) · Asset: USDC 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+      Network: Base (8453) · USDC · Pay-to: 0x60264c480b67adb557efEd22Cf0e7ceA792DefB7
     </div>
   </footer>
 

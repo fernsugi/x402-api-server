@@ -1,39 +1,29 @@
 /**
- * x402 Payment Middleware
+ * x402 Payment Middleware — Production
  *
- * Implements the HTTP 402 Payment Required protocol:
- *
- *   Request (no payment)
- *     ↓
- *   402 + { x402Version, accepts: [{ scheme, network, asset, payTo, maxAmountRequired, ... }] }
- *     ↓
- *   Client pays on-chain & re-sends with X-PAYMENT header
- *     ↓
- *   Middleware verifies payment → next() (serve data) or 402/400 (reject)
+ * Implements HTTP 402 Payment Required protocol:
+ *   1. No X-PAYMENT header → 402 with payment instructions
+ *   2. X-PAYMENT present → verify (real or mock depending on NODE_ENV) → serve or reject
  *
  * Usage:
  *   const { requirePayment } = require('./middleware/x402');
- *   router.get('/my-endpoint', requirePayment(config), handler);
+ *   router.get('/endpoint', requirePayment({ resource, description, maxAmountRequired }), handler);
  */
 
 'use strict';
 
-const { verifyPayment } = require('../services/mockVerifier');
+const { verifyPayment } = require('../services/verifier');
 
-// Our receiving wallet on Base (replace with real wallet in production)
-const PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+const PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || '0x60264c480b67adb557efEd22Cf0e7ceA792DefB7';
+const FACILITATOR_URL = 'https://x402.org/facilitator';
 
 /**
- * Factory: returns Express middleware that enforces x402 payment for an endpoint.
+ * Factory: Express middleware enforcing x402 payment.
  *
  * @param {object} config
- * @param {string}  config.resource           - Canonical URL of the endpoint (e.g. "/api/price-feed")
- * @param {string}  config.description        - Human-readable description
- * @param {number}  config.maxAmountRequired  - Price in USDC micro-units (1 USDC = 1_000_000)
- *                                              e.g. 0.001 USDC → 1000
- * @param {string}  [config.scheme="exact"]   - Payment scheme ("exact" | "upto")
- * @param {string}  [config.network="base"]   - Chain network identifier
- * @param {string}  [config.asset]            - USDC contract address on Base
+ * @param {string} config.resource          - Endpoint path (e.g. "/api/price-feed")
+ * @param {string} config.description       - Human-readable description
+ * @param {number} config.maxAmountRequired - Price in USDC micro-units (0.001 USDC = 1000)
  */
 function requirePayment(config) {
   const {
@@ -42,19 +32,19 @@ function requirePayment(config) {
     maxAmountRequired,
     scheme = 'exact',
     network = 'base',
-    asset = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base mainnet
+    asset = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
   } = config;
 
   if (!resource || !description || maxAmountRequired === undefined) {
     throw new Error('x402 middleware: resource, description, and maxAmountRequired are required');
   }
 
-  return function x402Middleware(req, res, next) {
+  return async function x402Middleware(req, res, next) {
     const paymentHeader = req.headers['x-payment'];
 
-    // ── No payment header → return 402 with payment instructions ────────────
+    // ── No payment → 402 ────────────────────────────────────────────────
     if (!paymentHeader) {
-      const paymentRequired = {
+      return res.status(402).json({
         x402Version: 1,
         error: 'Payment Required',
         accepts: [
@@ -63,60 +53,63 @@ function requirePayment(config) {
             network,
             asset,
             payTo: PAY_TO_ADDRESS,
-            maxAmountRequired: String(maxAmountRequired), // In USDC micro-units (6 decimals)
+            maxAmountRequired: String(maxAmountRequired),
             resource: `${req.protocol}://${req.get('host')}${resource}`,
             description,
             mimeType: 'application/json',
-            outputSchema: null, // Optional: JSON Schema of the response
+            outputSchema: null,
             extra: {
-              // Hint for AI agents building the payment tx
               name: 'USD Coin',
               version: '2',
-              chainId: 8453, // Base mainnet
-              // ⚠️ MOCK: In production the facilitator URL validates proofs
-              facilitatorUrl: 'https://x402.org/facilitator', // Placeholder
+              chainId: 8453,
+              facilitatorUrl: FACILITATOR_URL,
             },
           },
         ],
-      };
-
-      return res.status(402).json(paymentRequired);
-    }
-
-    // ── Payment header present → verify it ──────────────────────────────────
-    const result = verifyPayment(paymentHeader, {
-      payTo: PAY_TO_ADDRESS,
-      maxAmountRequired,
-      asset,
-      network,
-    });
-
-    if (!result.valid) {
-      return res.status(402).json({
-        x402Version: 1,
-        error: 'Payment verification failed',
-        reason: result.reason,
       });
     }
 
-    // Attach verification result to request for downstream handlers
-    req.x402 = {
-      verified: true,
-      mock: result.mock, // True until real verification is wired up
-      txHash: result.txHash,
-      payer: result.payer,
-      amount: result.amount,
-    };
+    // ── Verify payment ──────────────────────────────────────────────────
+    try {
+      const result = await verifyPayment(paymentHeader, {
+        payTo: PAY_TO_ADDRESS,
+        maxAmountRequired,
+        asset,
+        network,
+      });
 
-    // Pass the X-Payment-Response header back so agents can confirm receipt
-    res.setHeader('X-Payment-Response', JSON.stringify({
-      success: true,
-      txHash: result.txHash,
-      payer: result.payer,
-      mock: result.mock,
-    }));
+      if (!result.valid) {
+        return res.status(402).json({
+          x402Version: 1,
+          error: 'Payment verification failed',
+          reason: result.reason,
+        });
+      }
 
-    next();
+      // Attach to request for downstream handlers
+      req.x402 = {
+        verified: true,
+        mock: result.mock || false,
+        txHash: result.txHash,
+        payer: result.payer,
+        amount: result.amount,
+      };
+
+      res.setHeader('X-Payment-Response', JSON.stringify({
+        success: true,
+        txHash: result.txHash,
+        payer: result.payer,
+        mock: result.mock || false,
+      }));
+
+      next();
+    } catch (err) {
+      console.error('[x402] Verification error:', err);
+      res.status(500).json({
+        error: 'Payment verification error',
+        message: err.message,
+      });
+    }
   };
 }
 
