@@ -47,7 +47,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/sugi/x402-api-server"
+    "url": "https://github.com/fernsugi/x402-api-server"
   },
   "peerDependencies": {
     "@elizaos/core": ">=1.0.0"

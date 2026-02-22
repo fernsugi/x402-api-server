@@ -1,5 +1,9 @@
 # x402 API Server
 
+[![npm: MCP Server](https://img.shields.io/npm/v/@x402-api/mcp-server?label=MCP%20Server&color=blue)](https://www.npmjs.com/package/@x402-api/mcp-server)
+[![npm: ElizaOS Plugin](https://img.shields.io/npm/v/@x402-api/elizaos-plugin?label=ElizaOS%20Plugin&color=green)](https://www.npmjs.com/package/@x402-api/elizaos-plugin)
+[![Listed on awesome-x402](https://img.shields.io/badge/awesome--x402-listed-orange)](https://github.com/xpaysh/awesome-x402)
+
 > **Pay-per-call crypto/DeFi data API using HTTP 402 Payment Required.**  
 > No API keys. No subscriptions. AI agents pay USDC on Base, per request.
 

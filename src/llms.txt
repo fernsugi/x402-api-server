@@ -1,0 +1,60 @@
+# x402-api — DeFi Data API for AI Agents
+
+> Pay-per-call crypto & DeFi data. No API keys. USDC micropayments on Base via x402 protocol.
+
+## Base URL
+https://x402-api.fly.dev
+
+## Identity
+- ERC-8004 Agent #18763 on Base
+- Payment wallet: 0x60264c480b67adb557efEd22Cf0e7ceA792DefB7
+- USDC contract (Base): 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+
+## Endpoints
+
+### GET /api/price-feed — 0.001 USDC
+BTC, ETH, SOL prices + top 5 movers/losers by 24h change. 60s cache.
+
+### GET /api/gas-tracker — 0.001 USDC
+Gas prices on Ethereum, Base, Polygon, Arbitrum. Slow/normal/fast tiers + USD estimates.
+
+### GET /api/dex-quotes — 0.002 USDC
+Swap quotes across Uniswap V3, SushiSwap, 1inch. Params: ?from=ETH&to=USDC&amount=1
+
+### GET /api/token-scanner — 0.003 USDC
+Token security: contract verification, honeypot check, liquidity lock, mint function, risk score. Params: ?token=PEPE
+
+### GET /api/whale-tracker — 0.005 USDC
+Large transfers, holder concentration, Gini coefficient. Params: ?token=ETH
+
+### GET /api/yield-scanner — 0.005 USDC
+Top DeFi yields: Aave, Compound, Morpho, Lido, Pendle, Ethena. Filter by chain, asset, TVL.
+
+### GET /api/funding-rates — 0.008 USDC
+Perp funding rates on Hyperliquid, dYdX v4, Aevo, GMX, Drift, Vertex + arb spread ranking. Params: ?asset=ETH
+
+### GET /api/wallet-profiler — 0.008 USDC
+Wallet portfolio: holdings, DeFi positions, activity metrics, risk classification. Params: ?address=0x...
+
+## Free Endpoints
+- GET /health — Server health check
+- GET /api/endpoints — Machine-readable endpoint catalog (JSON)
+- GET /api/bazaar — Bazaar discovery schemas
+- GET /.well-known/agent-registration.json — ERC-8004 registration
+
+## Payment Flow
+1. Agent calls endpoint without payment → receives 402 with payment instructions
+2. Agent signs EIP-3009 transferWithAuthorization (USDC on Base)
+3. Agent retries with X-Payment header containing base64-encoded proof
+4. Server verifies via x402.org facilitator → returns data
+
+## Integrations
+- MCP Server: @x402-api/mcp-server
+- ElizaOS Plugin: @x402-api/elizaos-plugin
+- x402-fetch (Coinbase): automatic 402 → pay → retry
+
+## Links
+- Landing page: https://x402-api.fly.dev
+- BaseScan: https://basescan.org/nft/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432/18763
+- Blog: https://dev.to/fernsugi/i-built-a-defi-data-api-where-ai-agents-pay-per-call-heres-how-oeg
+- GitHub: https://github.com/fernsugi/x402-api-server
