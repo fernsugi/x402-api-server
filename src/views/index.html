@@ -3,362 +3,385 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>x402 API Server — Pay-Per-Call DeFi Data</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet" />
+  <title>x402-api — Pay-Per-Call DeFi Data for AI Agents</title>
+  <meta name="description" content="Pay-per-call DeFi &amp; crypto data API for AI agents. 8 endpoints, USDC micropayments on Base, no API keys needed." />
 
   <style>
-    /* ── Design tokens ───────────────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════════════════
+       DESIGN TOKENS
+       Self-contained: zero external dependencies.
+       System mono fonts look great on every OS.
+    ═══════════════════════════════════════════════════════════════════ */
     :root {
-      --bg:        #060a0f;
-      --bg2:       #0c1118;
-      --bg3:       #111922;
-      --border:    #1a2535;
-      --green:     #00ff87;
-      --green-dim: #00cc6a;
-      --green-glow:#00ff8740;
-      --blue:      #00c8ff;
-      --blue-dim:  #0099cc;
-      --amber:     #ffb800;
-      --amber-dim: #cc9200;
-      --red:       #ff4466;
-      --text:      #c8d8e8;
-      --text-dim:  #607080;
-      --text-mute: #2a3848;
-      --font-mono: 'Share Tech Mono', 'Courier New', monospace;
-      --font-display: 'Orbitron', monospace;
-      --font-body: 'Space Grotesk', sans-serif;
+      --bg:         #04080d;
+      --bg2:        #080e16;
+      --bg3:        #0d151f;
+      --bg4:        #111d29;
+      --border:     #172130;
+      --border2:    #1f2e42;
+
+      --green:      #00ff87;
+      --green-dim:  #00cc6a;
+      --green-glow: rgba(0,255,135,0.15);
+      --green-faint:rgba(0,255,135,0.05);
+
+      --blue:       #00d4ff;
+      --blue-dim:   #009ec0;
+      --blue-faint: rgba(0,212,255,0.06);
+
+      --amber:      #ffb800;
+      --amber-dim:  #cc9200;
+      --red:        #ff4466;
+      --purple:     #c084fc;
+
+      --text:       #b8cce0;
+      --text-dim:   #506070;
+      --text-mute:  #1e2d3d;
+
+      /* System mono stack — looks great on macOS, Windows, Linux */
+      --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Code',
+                   'Source Code Pro', Menlo, Consolas, 'Courier New', monospace;
     }
 
-    /* ── Reset ───────────────────────────────────────────────────────── */
+    /* ── Reset ─────────────────────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
+
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: var(--font-body);
-      font-size: 15px;
-      line-height: 1.6;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.65;
       overflow-x: hidden;
       min-height: 100vh;
     }
 
-    /* ── Grid background ─────────────────────────────────────────────── */
+    /* ── Grid background ──────────────────────────────────────────── */
     body::before {
       content: '';
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background-image:
         linear-gradient(var(--text-mute) 1px, transparent 1px),
         linear-gradient(90deg, var(--text-mute) 1px, transparent 1px);
-      background-size: 40px 40px;
-      opacity: 0.25;
+      background-size: 48px 48px;
+      opacity: 0.35;
       pointer-events: none;
       z-index: 0;
     }
 
-    /* ── Scanlines overlay ───────────────────────────────────────────── */
+    /* ── CRT scanlines ────────────────────────────────────────────── */
     body::after {
       content: '';
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background: repeating-linear-gradient(
         0deg,
         transparent,
         transparent 2px,
-        rgba(0, 0, 0, 0.15) 2px,
-        rgba(0, 0, 0, 0.15) 4px
+        rgba(0,0,0,0.12) 2px,
+        rgba(0,0,0,0.12) 4px
       );
       pointer-events: none;
       z-index: 1;
     }
 
-    /* ── Canvas for matrix rain ──────────────────────────────────────── */
     #matrix-canvas {
-      position: fixed;
-      top: 0; left: 0;
+      position: fixed; top: 0; left: 0;
       width: 100%; height: 100%;
-      opacity: 0.04;
+      opacity: 0.035;
       pointer-events: none;
       z-index: 0;
     }
 
-    /* ── Layout ──────────────────────────────────────────────────────── */
+    /* ── Layout ───────────────────────────────────────────────────── */
     .wrapper {
       position: relative;
       z-index: 2;
-      max-width: 1100px;
+      max-width: 1120px;
       margin: 0 auto;
-      padding: 0 2rem;
+      padding: 0 1.5rem;
     }
 
-    /* ── Header / Hero ───────────────────────────────────────────────── */
-    header {
-      padding: 3.5rem 0 2rem;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .header-top {
+    /* ── Terminal bars ────────────────────────────────────────────── */
+    .term-bar {
       display: flex;
       align-items: center;
-      gap: 1rem;
-      margin-bottom: 0.5rem;
-    }
-
-    .status-dot {
-      width: 10px; height: 10px;
-      border-radius: 50%;
-      background: var(--green);
-      box-shadow: 0 0 12px var(--green);
-      animation: pulse 2s ease-in-out infinite;
-      flex-shrink: 0;
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; box-shadow: 0 0 12px var(--green); }
-      50%       { opacity: 0.5; box-shadow: 0 0 4px var(--green); }
-    }
-
-    .system-label {
-      font-family: var(--font-mono);
+      gap: 0.5rem;
+      padding: 0.6rem 1rem;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 6px 6px 0 0;
+      border-bottom: none;
       font-size: 11px;
-      color: var(--green);
-      letter-spacing: 0.2em;
-      text-transform: uppercase;
-    }
-
-    .logo {
-      font-family: var(--font-display);
-      font-size: clamp(2.8rem, 7vw, 5rem);
-      font-weight: 900;
-      color: var(--green);
-      letter-spacing: -0.02em;
-      line-height: 1;
-      text-shadow:
-        0 0 40px var(--green-glow),
-        0 0 80px rgba(0, 255, 135, 0.1);
-      position: relative;
-    }
-
-    .logo-sub {
-      font-family: var(--font-display);
-      font-size: clamp(0.9rem, 2vw, 1.1rem);
-      font-weight: 400;
-      color: var(--blue);
-      letter-spacing: 0.3em;
-      text-transform: uppercase;
-      margin-top: 0.3rem;
-    }
-
-    .tagline {
-      font-size: 1.05rem;
       color: var(--text-dim);
-      margin-top: 1.2rem;
-      max-width: 600px;
-      font-weight: 300;
+    }
+    .term-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .term-dot.r { background: #ff5f57; }
+    .term-dot.y { background: #ffbd2e; }
+    .term-dot.g { background: #28ca41; }
+    .term-title { flex: 1; text-align: center; color: var(--text-dim); letter-spacing: 0.08em; }
+
+    /* ── ASCII logo block ─────────────────────────────────────────── */
+    header {
+      padding: 3rem 0 0;
     }
 
-    .tagline strong { color: var(--text); font-weight: 500; }
+    .logo-block {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 0 0 6px 6px;
+      padding: 2rem 2rem 1.8rem;
+      position: relative;
+      overflow: hidden;
+    }
 
-    .header-meta {
+    .logo-block::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse at 30% 50%, var(--green-glow) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .ascii-logo {
+      color: var(--green);
+      font-size: clamp(0.55rem, 1.4vw, 0.95rem);
+      line-height: 1.2;
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 20px var(--green-glow), 0 0 40px rgba(0,255,135,0.08);
+      position: relative;
+      display: inline-block;
+    }
+
+    .ascii-logo:hover {
+      animation: glitch 0.35s steps(1);
+    }
+
+    @keyframes glitch {
+      0%   { clip-path: none; transform: none; }
+      20%  { clip-path: inset(25% 0 55% 0); transform: translate(-4px, 0); color: var(--blue); }
+      40%  { clip-path: inset(55% 0 15% 0); transform: translate(4px, 0); }
+      60%  { clip-path: inset(35% 0 40% 0); transform: translate(-2px, 0); color: var(--green); }
+      80%  { clip-path: none; transform: translate(1px, 0); }
+      100% { clip-path: none; transform: none; }
+    }
+
+    .logo-tagline {
+      margin-top: 1.2rem;
+      color: var(--text-dim);
+      font-size: 12px;
+      letter-spacing: 0.05em;
+    }
+    .logo-tagline .hl { color: var(--blue); }
+    .logo-tagline .accent { color: var(--green); }
+
+    .status-line {
       display: flex;
-      gap: 2rem;
-      margin-top: 1.5rem;
+      align-items: center;
+      gap: 1.5rem;
+      margin-top: 1.4rem;
       flex-wrap: wrap;
     }
 
-    .meta-item {
-      font-family: var(--font-mono);
-      font-size: 12px;
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 11px;
       color: var(--text-dim);
     }
-    .meta-item span { color: var(--green); }
+    .status-item .val { color: var(--green); }
+    .status-item .val.blue { color: var(--blue); }
+    .status-item .val.amber { color: var(--amber); }
 
-    /* ── Protocol flow diagram ───────────────────────────────────────── */
-    .flow-section {
-      padding: 3rem 0;
-      border-bottom: 1px solid var(--border);
+    .dot-pulse {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+      flex-shrink: 0;
+    }
+    @keyframes pulse {
+      0%,100% { opacity:1; box-shadow: 0 0 8px var(--green); }
+      50%      { opacity:0.4; box-shadow: 0 0 3px var(--green); }
     }
 
-    .section-label {
-      font-family: var(--font-mono);
+    /* ── Live ticker ──────────────────────────────────────────────── */
+    .ticker-wrap {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg2);
+      padding: 0.45rem 0;
+      margin-top: 1.4rem;
+    }
+    .ticker-inner {
+      display: flex;
+      gap: 3rem;
+      animation: ticker 35s linear infinite;
+      white-space: nowrap;
       font-size: 11px;
+    }
+    @keyframes ticker { 0% { transform:translateX(0); } 100% { transform:translateX(-50%); } }
+    .ticker-item { flex-shrink: 0; }
+    .ticker-item .sym { color: var(--text-dim); }
+    .ticker-item .price { color: var(--text); margin: 0 0.3rem; }
+    .ticker-item .up   { color: var(--green); }
+    .ticker-item .dn   { color: var(--red); }
+
+    /* ── Section labels ───────────────────────────────────────────── */
+    section { padding: 2.8rem 0; border-bottom: 1px solid var(--border); }
+
+    .sec-label {
+      font-size: 10px;
       color: var(--text-dim);
       letter-spacing: 0.25em;
       text-transform: uppercase;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.6rem;
     }
-    .section-label::before { content: '// '; color: var(--green); }
+    .sec-label::before { content: '// '; color: var(--green); }
 
-    .flow-steps {
-      display: flex;
-      align-items: stretch;
-      gap: 0;
-      overflow-x: auto;
-      padding-bottom: 0.5rem;
-    }
-
-    .flow-step {
-      flex: 1;
-      min-width: 140px;
-      padding: 1.2rem 1rem;
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      position: relative;
-    }
-    .flow-step:first-child { border-radius: 6px 0 0 6px; }
-    .flow-step:last-child  { border-radius: 0 6px 6px 0; }
-
-    .flow-arrow {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      width: 28px;
-      flex-shrink: 0;
-      color: var(--green);
-      font-size: 1.2rem;
-      background: var(--bg2);
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .step-num {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-dim);
-      margin-bottom: 0.4rem;
-    }
-    .step-title {
-      font-family: var(--font-mono);
-      font-size: 13px;
-      color: var(--green);
-      margin-bottom: 0.3rem;
-    }
-    .step-desc {
-      font-size: 11px;
-      color: var(--text-dim);
-      line-height: 1.4;
-    }
-
-    /* ── Endpoint cards ──────────────────────────────────────────────── */
-    .endpoints-section {
-      padding: 3rem 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .endpoints-grid {
+    /* ── Identity / ERC-8004 ──────────────────────────────────────── */
+    .identity-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-      gap: 1.5rem;
-      margin-top: 1.5rem;
-    }
-
-    .endpoint-card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      overflow: hidden;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .endpoint-card:hover {
-      border-color: var(--green-dim);
-      box-shadow: 0 0 20px rgba(0, 255, 135, 0.05);
-    }
-
-    .card-header {
-      padding: 1.2rem 1.4rem 1rem;
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 1rem;
     }
 
-    .card-method {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      background: rgba(0, 255, 135, 0.1);
-      color: var(--green);
-      padding: 2px 8px;
-      border-radius: 3px;
-      border: 1px solid var(--green-dim);
-      flex-shrink: 0;
+    .id-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.2rem 1.4rem;
+      position: relative;
+      overflow: hidden;
     }
-
-    .card-path {
-      font-family: var(--font-mono);
-      font-size: 15px;
-      color: var(--blue);
-      flex: 1;
+    .id-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
     }
+    .id-card.green::before { background: linear-gradient(90deg, var(--green), transparent); }
+    .id-card.blue::before  { background: linear-gradient(90deg, var(--blue), transparent); }
+    .id-card.amber::before { background: linear-gradient(90deg, var(--amber), transparent); }
+    .id-card.purple::before { background: linear-gradient(90deg, var(--purple), transparent); }
 
-    .card-price {
-      font-family: var(--font-mono);
-      font-size: 13px;
-      color: var(--amber);
-      text-align: right;
-      white-space: nowrap;
-    }
-    .card-price small { display: block; font-size: 10px; color: var(--text-dim); margin-top: 2px; }
-
-    .card-body { padding: 1.2rem 1.4rem; }
-
-    .card-desc {
-      font-size: 13px;
-      color: var(--text-dim);
-      margin-bottom: 1rem;
-      line-height: 1.5;
-    }
-
-    .card-params { margin-bottom: 1rem; }
-    .params-label {
-      font-family: var(--font-mono);
+    .id-card .label {
       font-size: 10px;
       color: var(--text-dim);
       letter-spacing: 0.15em;
       text-transform: uppercase;
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.5rem;
     }
-    .param-row {
-      display: flex;
-      gap: 0.5rem;
-      align-items: baseline;
-      margin-bottom: 0.25rem;
-      font-size: 12px;
+    .id-card .value {
+      font-size: 14px;
+      color: var(--text);
+      word-break: break-all;
     }
-    .param-name {
-      font-family: var(--font-mono);
+    .id-card .value.green  { color: var(--green); }
+    .id-card .value.blue   { color: var(--blue); }
+    .id-card .value.amber  { color: var(--amber); }
+    .id-card .value.purple { color: var(--purple); }
+    .id-card .sub {
+      margin-top: 0.4rem;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+    .id-card a {
       color: var(--blue);
-      flex-shrink: 0;
+      text-decoration: none;
     }
-    .param-desc { color: var(--text-dim); }
+    .id-card a:hover { color: var(--green); text-decoration: underline; }
 
-    /* ── Code snippet ────────────────────────────────────────────────── */
-    .code-block {
-      background: var(--bg);
+    /* ── Protocol flow ────────────────────────────────────────────── */
+    .flow-steps {
+      display: flex;
+      align-items: stretch;
+      overflow-x: auto;
+      padding-bottom: 0.5rem;
+      gap: 0;
+    }
+    .flow-step {
+      flex: 1; min-width: 130px;
+      padding: 1.1rem 1rem;
+      background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: 5px;
-      overflow: hidden;
-      margin-top: 0.8rem;
     }
+    .flow-step:first-child { border-radius: 6px 0 0 6px; }
+    .flow-step:last-child  { border-radius: 0 6px 6px 0; }
+    .flow-arrow {
+      display: flex; align-items: center; justify-content: center;
+      width: 24px; flex-shrink: 0;
+      color: var(--green-dim);
+      background: var(--bg2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+    }
+    .step-num  { font-size: 10px; color: var(--text-dim); margin-bottom: 0.4rem; }
+    .step-title { font-size: 12px; color: var(--green); margin-bottom: 0.3rem; }
+    .step-desc  { font-size: 11px; color: var(--text-dim); line-height: 1.45; }
 
-    .code-header {
+    /* ── Endpoints table ──────────────────────────────────────────── */
+    .endpoint-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 0.5rem;
+    }
+    .endpoint-table th {
+      text-align: left;
+      padding: 0.5rem 0.8rem;
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border2);
+    }
+    .endpoint-table td {
+      padding: 0.7rem 0.8rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    .endpoint-table tr:last-child td { border-bottom: none; }
+    .endpoint-table tr:hover td { background: var(--bg2); }
+    .ep-method {
+      display: inline-block;
+      font-size: 9px;
+      background: rgba(0,255,135,0.1);
+      color: var(--green);
+      border: 1px solid var(--green-dim);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+    .ep-path { color: var(--blue); }
+    .ep-price { color: var(--amber); white-space: nowrap; }
+    .ep-desc  { color: var(--text-dim); font-size: 11px; }
+    .ep-status {
+      font-size: 9px;
+      padding: 1px 7px;
+      border-radius: 10px;
+      white-space: nowrap;
+    }
+    .ep-status.real { background: rgba(0,255,135,0.1); color: var(--green); border: 1px solid rgba(0,255,135,0.3); }
+    .ep-status.mock { background: rgba(255,184,0,0.1); color: var(--amber); border: 1px solid rgba(255,184,0,0.3); }
+
+    /* ── Code blocks ──────────────────────────────────────────────── */
+    .code-wrap {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 1rem;
+    }
+    .code-hdr {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 0.5rem 0.8rem;
+      padding: 0.5rem 0.9rem;
       border-bottom: 1px solid var(--border);
       background: var(--bg3);
     }
-    .code-lang {
-      font-family: var(--font-mono);
-      font-size: 10px;
-      color: var(--text-dim);
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-    }
-
+    .code-lang { font-size: 10px; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; }
     .copy-btn {
       font-family: var(--font-mono);
       font-size: 10px;
@@ -371,139 +394,189 @@
       transition: color 0.15s, border-color 0.15s;
     }
     .copy-btn:hover { color: var(--green); border-color: var(--green-dim); }
-    .copy-btn.copied { color: var(--green); border-color: var(--green); }
+    .copy-btn.ok { color: var(--green); border-color: var(--green); }
 
     pre {
-      padding: 0.9rem 1rem;
+      padding: 1rem 1.1rem;
       font-family: var(--font-mono);
-      font-size: 11.5px;
+      font-size: 12px;
       color: var(--text);
       overflow-x: auto;
-      line-height: 1.55;
+      line-height: 1.6;
       white-space: pre;
     }
 
-    .hl-key   { color: #a8d8ff; }
-    .hl-str   { color: #ffe0a0; }
-    .hl-num   { color: #b0f0b0; }
-    .hl-bool  { color: #ffd0a0; }
-    .hl-null  { color: var(--text-dim); }
-    .hl-green { color: var(--green); }
-    .hl-dim   { color: var(--text-dim); }
+    /* ── Syntax highlighting ──────────────────────────────────────── */
+    .kw   { color: #79c0ff; }   /* keyword / key */
+    .str  { color: #a8d5a2; }   /* string */
+    .num  { color: #f0c060; }   /* number */
+    .bool { color: #e8a080; }   /* boolean */
+    .cmt  { color: var(--text-dim); font-style: italic; }
+    .hi   { color: var(--green); }
+    .hi2  { color: var(--blue); }
+    .hi3  { color: var(--amber); }
+    .dim  { color: var(--text-dim); }
 
-    /* ── Try it section ──────────────────────────────────────────────── */
-    .try-section {
-      padding: 3rem 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .try-grid {
+    /* ── Usage section with two panels ───────────────────────────── */
+    .usage-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 1.5rem;
-      margin-top: 1.5rem;
     }
+    @media (max-width: 720px) { .usage-grid { grid-template-columns: 1fr; } }
 
-    @media (max-width: 700px) {
-      .try-grid { grid-template-columns: 1fr; }
-    }
-
-    .try-panel {
+    .usage-panel {
       background: var(--bg2);
       border: 1px solid var(--border);
-      border-radius: 8px;
+      border-radius: 6px;
       overflow: hidden;
     }
-
-    .panel-title {
-      padding: 0.8rem 1.2rem;
+    .panel-hdr {
+      padding: 0.6rem 1rem;
       border-bottom: 1px solid var(--border);
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--text-dim);
       background: var(--bg3);
-    }
-
-    .request-display {
-      padding: 1rem 1.2rem;
-      font-family: var(--font-mono);
-      font-size: 12px;
-      color: var(--text);
-    }
-    .req-line { display: flex; gap: 0.8rem; margin-bottom: 0.3rem; align-items: baseline; }
-    .req-method { color: var(--green); font-weight: bold; }
-    .req-url    { color: var(--blue); }
-    .req-proto  { color: var(--text-dim); }
-    .req-header-key   { color: var(--text-dim); }
-    .req-header-value { color: var(--amber); }
-    .req-label  { color: var(--text-dim); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 0.8rem; margin-bottom: 0.4rem; }
-    .status-402 { color: var(--red); }
-    .status-200 { color: var(--green); }
-
-    /* ── Architecture note ───────────────────────────────────────────── */
-    .arch-section {
-      padding: 3rem 0;
-      border-bottom: 1px solid var(--border);
-    }
-
-    .arch-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 2rem;
-      margin-top: 1.5rem;
-    }
-    @media (max-width: 700px) { .arch-grid { grid-template-columns: 1fr; } }
-
-    .arch-block h3 {
-      font-family: var(--font-mono);
-      font-size: 13px;
-      color: var(--green);
-      margin-bottom: 0.8rem;
-    }
-
-    .arch-list {
-      list-style: none;
-      font-size: 13px;
+      font-size: 10px;
       color: var(--text-dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
     }
-    .arch-list li {
-      padding: 0.3rem 0;
+    .panel-body { padding: 1rem 1.1rem; }
+
+    /* ── Prompt-style request display ────────────────────────────── */
+    .prompt-line {
+      display: flex;
+      gap: 0.6rem;
+      margin-bottom: 0.3rem;
+      font-size: 11px;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .pm { color: var(--green); }
+    .pu { color: var(--blue); }
+    .pp { color: var(--text-dim); }
+    .ph { color: var(--text-dim); }
+    .pv { color: var(--amber); }
+    .resp-label { font-size: 10px; color: var(--text-dim); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 0.9rem; margin-bottom: 0.4rem; }
+    .s402 { color: var(--red); }
+    .s200 { color: var(--green); }
+
+    /* ── x402-fetch example ───────────────────────────────────────── */
+    .fetch-section .sec-label { margin-bottom: 0.5rem; }
+    .fetch-intro {
+      color: var(--text-dim);
+      font-size: 12px;
+      margin-bottom: 1.2rem;
+      line-height: 1.6;
+    }
+    .fetch-intro code {
+      color: var(--blue);
+      background: rgba(0,212,255,0.08);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    .tab-bar {
+      display: flex;
       border-bottom: 1px solid var(--border);
+      background: var(--bg3);
+      border-radius: 6px 6px 0 0;
+      overflow: hidden;
+    }
+    .tab-btn {
+      padding: 0.55rem 1rem;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--text-dim);
+      background: none;
+      border: none;
+      border-right: 1px solid var(--border);
+      cursor: pointer;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      transition: color 0.15s, background 0.15s;
+    }
+    .tab-btn.active { color: var(--green); background: var(--bg4); }
+    .tab-btn:hover:not(.active) { color: var(--text); background: var(--bg2); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .tab-wrap { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+
+    /* ── Mock warning ─────────────────────────────────────────────── */
+    .banner {
+      border-radius: 6px;
+      padding: 0.9rem 1.2rem;
       display: flex;
       gap: 0.8rem;
-    }
-    .arch-list li:last-child { border-bottom: none; }
-    .arch-list li::before { content: '▸'; color: var(--green); flex-shrink: 0; }
-    .arch-list li strong { color: var(--text); }
-
-    /* ── Mock warning banner ─────────────────────────────────────────── */
-    .mock-banner {
-      background: rgba(255, 184, 0, 0.06);
-      border: 1px solid rgba(255, 184, 0, 0.25);
-      border-radius: 6px;
-      padding: 1rem 1.4rem;
-      margin: 2rem 0;
-      display: flex;
-      gap: 1rem;
       align-items: flex-start;
+      font-size: 12px;
+      margin-top: 1.5rem;
     }
-    .mock-icon { font-size: 1.2rem; flex-shrink: 0; }
-    .mock-text { font-size: 13px; color: var(--amber); line-height: 1.5; }
-    .mock-text strong { display: block; margin-bottom: 0.2rem; }
-    .mock-text code {
+    .banner.warn {
+      background: rgba(255,184,0,0.05);
+      border: 1px solid rgba(255,184,0,0.25);
+      color: var(--amber);
+    }
+    .banner.info {
+      background: rgba(0,255,135,0.04);
+      border: 1px solid rgba(0,255,135,0.2);
+      color: var(--green);
+    }
+    .banner-icon { flex-shrink: 0; font-size: 14px; }
+    .banner-text { line-height: 1.5; }
+    .banner-text strong { display: block; margin-bottom: 0.2rem; }
+    .banner-text code {
       font-family: var(--font-mono);
       background: rgba(255,184,0,0.1);
-      padding: 1px 5px;
+      padding: 0 4px;
       border-radius: 3px;
       font-size: 11px;
     }
+    .banner.info .banner-text code { background: rgba(0,255,135,0.1); }
 
-    /* ── Footer ──────────────────────────────────────────────────────── */
+    /* ── Live price box ───────────────────────────────────────────── */
+    .price-box {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-top: 1.5rem;
+    }
+    .price-hdr {
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 10px;
+      color: var(--text-dim);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: var(--bg3);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .price-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 1rem;
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      gap: 1rem;
+    }
+    .price-row:last-child { border-bottom: none; }
+    .pr-sym { color: var(--text-dim); width: 3.5rem; }
+    .pr-val { color: var(--text); flex: 1; text-align: right; }
+    .pr-chg { width: 5rem; text-align: right; }
+    .pr-chg.up { color: var(--green); }
+    .pr-chg.dn { color: var(--red); }
+    .spinner { width: 10px; height: 10px; border: 1.5px solid var(--border); border-top-color: var(--green); border-radius: 50%; animation: spin 0.8s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Footer ───────────────────────────────────────────────────── */
     footer {
       padding: 2.5rem 0;
-      border-top: 1px solid var(--border);
     }
-    .footer-inner {
+    .footer-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -511,15 +584,14 @@
       gap: 1rem;
     }
     .footer-brand {
-      font-family: var(--font-display);
       font-size: 1.1rem;
       color: var(--green-dim);
+      letter-spacing: 0.05em;
     }
     .footer-links {
       display: flex;
       gap: 1.5rem;
-      font-family: var(--font-mono);
-      font-size: 12px;
+      font-size: 11px;
     }
     .footer-links a {
       color: var(--text-dim);
@@ -528,96 +600,36 @@
     }
     .footer-links a:hover { color: var(--green); }
     .footer-note {
-      font-family: var(--font-mono);
-      font-size: 11px;
+      margin-top: 1.2rem;
+      font-size: 10px;
       color: var(--text-mute);
-      margin-top: 1rem;
       text-align: center;
+      letter-spacing: 0.08em;
     }
 
-    /* ── Glitch animation on logo ────────────────────────────────────── */
-    @keyframes glitch1 {
-      0%, 90%, 100% { clip-path: none; transform: none; }
-      91% { clip-path: inset(20% 0 60% 0); transform: translate(-3px, 0); }
-      93% { clip-path: inset(60% 0 10% 0); transform: translate(3px, 0); }
-      95% { clip-path: inset(40% 0 30% 0); transform: translate(-2px, 0); }
-    }
+    /* ── Scrollbar ────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
 
-    .logo:hover { animation: glitch1 0.4s steps(1) both; }
-
-    /* ── Ticker animation for live feel ─────────────────────────────── */
-    .ticker-wrap {
-      overflow: hidden;
-      border-top: 1px solid var(--border);
-      border-bottom: 1px solid var(--border);
-      background: var(--bg2);
-      padding: 0.5rem 0;
-      margin: 1.5rem 0 0;
-    }
-    .ticker-inner {
-      display: flex;
-      gap: 3rem;
-      animation: ticker 30s linear infinite;
-      white-space: nowrap;
-      font-family: var(--font-mono);
-      font-size: 12px;
-    }
-    @keyframes ticker {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
-    .ticker-item { flex-shrink: 0; }
-    .ticker-item .sym { color: var(--text-dim); }
-    .ticker-item .price { color: var(--text); margin: 0 0.3rem; }
-    .ticker-item .up   { color: var(--green); }
-    .ticker-item .down { color: var(--red); }
-
-    /* ── Loading indicator ───────────────────────────────────────────── */
-    .spinner {
-      display: inline-block;
-      width: 14px; height: 14px;
-      border: 2px solid var(--border);
-      border-top-color: var(--green);
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      vertical-align: middle;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* ── Live price display ──────────────────────────────────────────── */
-    #live-prices {
-      font-family: var(--font-mono);
-      font-size: 12px;
-    }
-    .price-row {
-      display: flex;
-      justify-content: space-between;
-      padding: 0.4rem 0;
-      border-bottom: 1px solid var(--border);
-      gap: 1rem;
-    }
-    .price-row:last-child { border-bottom: none; }
-    .price-sym { color: var(--text-dim); }
-    .price-val { color: var(--text); }
-    .price-chg.pos { color: var(--green); }
-    .price-chg.neg { color: var(--red); }
-
-    /* ── Responsive ──────────────────────────────────────────────────── */
+    /* ── Responsive ───────────────────────────────────────────────── */
     @media (max-width: 600px) {
       .flow-steps { flex-direction: column; }
-      .flow-arrow { transform: rotate(90deg); width: 100%; height: 24px; justify-content: center; }
+      .flow-arrow { transform: rotate(90deg); width: 100%; height: 20px; justify-content: center; }
       .flow-step:first-child { border-radius: 6px 6px 0 0; }
       .flow-step:last-child  { border-radius: 0 0 6px 6px; }
-      .flow-step:first-child { border-radius: 4px; }
-      .endpoints-grid { grid-template-columns: 1fr; }
-      .arch-grid { grid-template-columns: 1fr; }
+      .endpoint-table { display: block; overflow-x: auto; }
+      pre { font-size: 10.5px; }
     }
 
-    /* Scrollbar */
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: var(--bg); }
-    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+    /* ── Blinking cursor ──────────────────────────────────────────── */
+    .cursor::after {
+      content: '█';
+      color: var(--green);
+      animation: blink 1.1s step-end infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
   </style>
 </head>
 <body>
@@ -626,531 +638,489 @@
 
 <div class="wrapper">
 
-  <!-- ── HEADER ──────────────────────────────────────────────────────── -->
+  <!-- ══════════════════════════════════════════════════════════════
+       HEADER / ASCII LOGO
+  ══════════════════════════════════════════════════════════════ -->
   <header>
-    <div class="header-top">
-      <div class="status-dot"></div>
-      <span class="system-label">System Online · Port 4020 · x402 Protocol v1</span>
+    <div class="term-bar">
+      <div class="term-dot r"></div>
+      <div class="term-dot y"></div>
+      <div class="term-dot g"></div>
+      <span class="term-title">x402-api — pay-per-call DeFi data — x402 protocol v1</span>
+      <div class="dot-pulse"></div>
     </div>
+    <div class="logo-block">
+      <pre class="ascii-logo">
+ ██╗  ██╗██╗  ██╗ ██████╗ ██████╗       █████╗ ██████╗ ██╗
+  ╚██╗██╔╝██║  ██║██╔═══██╗╚════██╗     ██╔══██╗██╔══██╗██║
+   ╚███╔╝ ███████║██║   ██║ █████╔╝ ─── ███████║██████╔╝██║
+   ██╔██╗ ╚════██║██║   ██║██╔═══╝      ██╔══██║██╔═══╝ ██║
+  ██╔╝ ██╗     ██║╚██████╔╝███████╗     ██║  ██║██║     ██║
+  ╚═╝  ╚═╝     ╚═╝ ╚═════╝ ╚══════╝     ╚═╝  ╚═╝╚═╝     ╚═╝</pre>
 
-    <div class="logo">x402</div>
-    <div class="logo-sub">Pay-Per-Call DeFi API</div>
+      <div class="logo-tagline">
+        <span class="accent">Pay-per-call DeFi &amp; crypto data API</span>
+        <span class="dim"> · </span>
+        <span class="hl">for AI agents</span>
+        <span class="dim"> · </span>
+        No API keys. No subscriptions. Just USDC on Base.
+      </div>
 
-    <p class="tagline">
-      HTTP-native micropayments for AI agents. <strong>No API keys. No subscriptions.</strong>
-      Agents pay <strong>USDC on Base</strong> per request — verified on-chain in ~200ms.
-    </p>
+      <div class="status-line">
+        <div class="status-item"><div class="dot-pulse"></div> <span class="val">ONLINE</span></div>
+        <div class="status-item">NETWORK <span class="val blue">Base (8453)</span></div>
+        <div class="status-item">ASSET <span class="val">USDC</span></div>
+        <div class="status-item">ENDPOINTS <span class="val amber">8 LIVE</span></div>
+        <div class="status-item">PROTOCOL <span class="val">x402 + EIP-3009</span></div>
+        <div class="status-item">ERC-8004 AGENT <span class="val">#18763</span></div>
+      </div>
 
-    <div class="header-meta">
-      <div class="meta-item">NETWORK <span>Base (chain 8453)</span></div>
-      <div class="meta-item">ASSET <span>USDC · 6 decimals</span></div>
-      <div class="meta-item">ENDPOINTS <span>8 live</span></div>
-      <div class="meta-item">MIN PRICE <span>0.001 USDC</span></div>
-    </div>
-
-    <!-- Live ticker -->
-    <div class="ticker-wrap" id="ticker-wrap">
-      <div class="ticker-inner" id="ticker">
-        <span class="ticker-item"><span class="sym">BTC</span> <span class="price" id="t-btc">$—</span> <span class="up" id="t-btc-c">—</span></span>
-        <span class="ticker-item"><span class="sym">ETH</span> <span class="price" id="t-eth">$—</span> <span class="up" id="t-eth-c">—</span></span>
-        <span class="ticker-item"><span class="sym">SOL</span> <span class="price" id="t-sol">$—</span> <span class="up" id="t-sol-c">—</span></span>
-        <span class="ticker-item"><span class="sym">HYPE</span> <span class="price" id="t-hype">$—</span> <span class="up" id="t-hype-c">—</span></span>
-        <span class="ticker-item"><span class="sym">SUI</span> <span class="price" id="t-sui">$—</span> <span class="up" id="t-sui-c">—</span></span>
-        <!-- duplicated for seamless loop -->
-        <span class="ticker-item"><span class="sym">BTC</span> <span class="price" id="t-btc2">$—</span> <span class="up" id="t-btc-c2">—</span></span>
-        <span class="ticker-item"><span class="sym">ETH</span> <span class="price" id="t-eth2">$—</span> <span class="up" id="t-eth-c2">—</span></span>
-        <span class="ticker-item"><span class="sym">SOL</span> <span class="price" id="t-sol2">$—</span> <span class="up" id="t-sol-c2">—</span></span>
-        <span class="ticker-item"><span class="sym">HYPE</span> <span class="price" id="t-hype2">$—</span> <span class="up" id="t-hype-c2">—</span></span>
-        <span class="ticker-item"><span class="sym">SUI</span> <span class="price" id="t-sui2">$—</span> <span class="up" id="t-sui-c2">—</span></span>
+      <div class="ticker-wrap" id="ticker-wrap">
+        <div class="ticker-inner" id="ticker">
+          <span class="ticker-item"><span class="sym">BTC</span> <span class="price" id="t-btc">$──</span> <span class="up" id="t-btc-c">──</span></span>
+          <span class="ticker-item"><span class="sym">ETH</span> <span class="price" id="t-eth">$──</span> <span class="up" id="t-eth-c">──</span></span>
+          <span class="ticker-item"><span class="sym">SOL</span> <span class="price" id="t-sol">$──</span> <span class="up" id="t-sol-c">──</span></span>
+          <span class="ticker-item"><span class="sym">SUI</span> <span class="price" id="t-sui">$──</span> <span class="up" id="t-sui-c">──</span></span>
+          <span class="ticker-item"><span class="sym">HYPE</span><span class="price" id="t-hype">$──</span> <span class="up" id="t-hype-c">──</span></span>
+          <span class="ticker-item"><span class="sym">LINK</span><span class="price" id="t-link">$──</span> <span class="up" id="t-link-c">──</span></span>
+          <!-- duplicate for seamless loop -->
+          <span class="ticker-item"><span class="sym">BTC</span> <span class="price" id="t-btc2">$──</span> <span class="up" id="t-btc-c2">──</span></span>
+          <span class="ticker-item"><span class="sym">ETH</span> <span class="price" id="t-eth2">$──</span> <span class="up" id="t-eth-c2">──</span></span>
+          <span class="ticker-item"><span class="sym">SOL</span> <span class="price" id="t-sol2">$──</span> <span class="up" id="t-sol-c2">──</span></span>
+          <span class="ticker-item"><span class="sym">SUI</span> <span class="price" id="t-sui2">$──</span> <span class="up" id="t-sui-c2">──</span></span>
+          <span class="ticker-item"><span class="sym">HYPE</span><span class="price" id="t-hype2">$──</span> <span class="up" id="t-hype-c2">──</span></span>
+          <span class="ticker-item"><span class="sym">LINK</span><span class="price" id="t-link2">$──</span> <span class="up" id="t-link-c2">──</span></span>
+        </div>
       </div>
     </div>
   </header>
 
-  <!-- ── PAYMENT INFO ──────────────────────────────────────────────────── -->
-  <div class="mock-banner" style="border-color: rgba(0, 255, 135, 0.25); background: rgba(0, 255, 135, 0.04);">
-    <div class="mock-icon">💰</div>
-    <div class="mock-text" style="color: var(--green);">
-      <strong>LIVE — Accepting USDC Payments on Base</strong>
-      Pay-to address: <code>0x60264c480b67adb557efEd22Cf0e7ceA792DefB7</code><br>
-      Network: Base mainnet (chain ID 8453) · Asset: USDC · Protocol: x402 with EIP-3009
+  <!-- ══════════════════════════════════════════════════════════════
+       IDENTITY / ERC-8004
+  ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-label">Agent Identity — ERC-8004</div>
+
+    <div class="identity-grid">
+      <div class="id-card green">
+        <div class="label">ERC-8004 Agent ID</div>
+        <div class="value green">#18763</div>
+        <div class="sub">
+          Registry: base:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432<br>
+          <a href="https://basescan.org/nft/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432/18763" target="_blank" rel="noopener">View on BaseScan ↗</a>
+        </div>
+      </div>
+
+      <div class="id-card blue">
+        <div class="label">Payment Address (USDC on Base)</div>
+        <div class="value blue" style="font-size:12px" id="pay-addr">0x60264c480b67adb557efEd22Cf0e7ceA792DefB7</div>
+        <div class="sub">
+          <a href="https://basescan.org/address/0x60264c480b67adb557efEd22Cf0e7ceA792DefB7" target="_blank" rel="noopener">View on BaseScan ↗</a>
+          · USDC contract: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+        </div>
+      </div>
+
+      <div class="id-card amber">
+        <div class="label">Domain Verification</div>
+        <div class="value amber" style="font-size:12px">/.well-known/agent-registration.json</div>
+        <div class="sub">
+          ERC-8004 · Trust model: reputation<br>
+          <a id="reg-link" href="/.well-known/agent-registration.json" target="_blank">View agent-registration.json ↗</a>
+        </div>
+      </div>
+
+      <div class="id-card purple">
+        <div class="label">Server Endpoint</div>
+        <div class="value purple" id="server-url">https://x402-api.fly.dev</div>
+        <div class="sub">
+          8 pay-gated endpoints · x402 protocol<br>
+          Verifier: <a href="https://x402.org/facilitator" target="_blank" rel="noopener">x402.org/facilitator ↗</a>
+        </div>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <!-- ── PROTOCOL FLOW ────────────────────────────────────────────────── -->
-  <section class="flow-section">
-    <div class="section-label">How x402 Works</div>
-
+  <!-- ══════════════════════════════════════════════════════════════
+       HOW x402 WORKS
+  ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-label">How x402 Works</div>
     <div class="flow-steps">
       <div class="flow-step">
         <div class="step-num">01</div>
         <div class="step-title">Request</div>
-        <div class="step-desc">Agent hits endpoint with no payment header</div>
+        <div class="step-desc">Agent calls endpoint — no payment header yet</div>
       </div>
       <div class="flow-arrow">→</div>
       <div class="flow-step">
         <div class="step-num">02</div>
         <div class="step-title">402 Response</div>
-        <div class="step-desc">Server returns payment details: asset, amount, payTo address</div>
+        <div class="step-desc">Server returns payTo address, asset, amount required</div>
       </div>
       <div class="flow-arrow">→</div>
       <div class="flow-step">
         <div class="step-num">03</div>
-        <div class="step-title">On-chain Tx</div>
-        <div class="step-desc">Agent sends USDC on Base, gets txHash</div>
+        <div class="step-title">Sign &amp; Pay</div>
+        <div class="step-desc">Agent signs EIP-3009 transferWithAuthorization on Base</div>
       </div>
       <div class="flow-arrow">→</div>
       <div class="flow-step">
         <div class="step-num">04</div>
-        <div class="step-title">Re-request</div>
-        <div class="step-desc">Agent retries with X-PAYMENT: &lt;txHash+sig&gt;</div>
+        <div class="step-title">Retry</div>
+        <div class="step-desc">Agent retries with X-Payment: &lt;base64 payload&gt;</div>
       </div>
       <div class="flow-arrow">→</div>
       <div class="flow-step">
         <div class="step-num">05</div>
         <div class="step-title">Verify + Serve</div>
-        <div class="step-desc">Server verifies on-chain, returns data. ~200ms total.</div>
+        <div class="step-desc">Server verifies via x402.org facilitator → 200 OK + data</div>
       </div>
     </div>
   </section>
 
-  <!-- ── ENDPOINTS ────────────────────────────────────────────────────── -->
-  <section class="endpoints-section">
-    <div class="section-label">Available Endpoints</div>
-    <div class="endpoints-grid">
+  <!-- ══════════════════════════════════════════════════════════════
+       ENDPOINTS
+  ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-label">Available Endpoints</div>
 
-      <!-- Price Feed -->
-      <div class="endpoint-card">
-        <div class="card-header">
-          <div>
-            <div class="card-method">GET</div>
-            <div class="card-path" style="margin-top:0.4rem">/api/price-feed</div>
-          </div>
-          <div class="card-price">
-            0.001 USDC
-            <small>per call</small>
-          </div>
+    <div class="banner info" style="margin-top:0; margin-bottom:1.2rem;">
+      <span class="banner-icon">💡</span>
+      <div class="banner-text">
+        <strong>Machine-readable catalog at <a href="/api/endpoints" style="color:var(--blue)">/api/endpoints</a></strong>
+        All endpoints require USDC payment on Base via the x402 protocol. Prices in USDC (6 decimal precision).
+      </div>
+    </div>
+
+    <table class="endpoint-table">
+      <thead>
+        <tr>
+          <th>Method</th>
+          <th>Endpoint</th>
+          <th>Price</th>
+          <th>Description</th>
+          <th>Data</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="ep-method">GET</span></td>
+          <td class="ep-path">/api/price-feed</td>
+          <td class="ep-price">0.001 USDC</td>
+          <td class="ep-desc">BTC, ETH, SOL prices + top 5 movers/losers by 24h change. 60s server cache.</td>
+          <td><span class="ep-status real">LIVE ✓</span></td>
+        </tr>
+        <tr>
+          <td><span class="ep-method">GET</span></td>
+          <td class="ep-path">/api/gas-tracker</td>
+          <td class="ep-price">0.001 USDC</td>
+          <td class="ep-desc">Gas prices on Ethereum, Base, Polygon, Arbitrum — slow/normal/fast tiers + USD cost estimates.</td>
+          <td><span class="ep-status real">LIVE ✓</span></td>
+        </tr>
+        <tr>
+          <td><span class="ep-method">GET</span></td>
+          <td class="ep-path">/api/dex-quotes</td>
+          <td class="ep-price">0.002 USDC</td>
+          <td class="ep-desc">Swap quotes across Uniswap V3, SushiSwap, 1inch. Price impact, fees, route. <code>?from=ETH&amp;to=USDC&amp;amount=1</code></td>
+          <td><span class="ep-status real">LIVE ✓</span></td>
+        </tr>
+        <tr>
+          <td><span class="ep-method">GET</span></td>
+          <td class="ep-path">/api/token-scanner</td>
+          <td class="ep-price">0.003 USDC</td>
+          <td class="ep-desc">Token security analysis: contract verification, honeypot check, liquidity lock, mint function, risk score. <code>?token=PEPE</code></td>
+          <td><span class="ep-status real">LIVE ✓</span></td>
+        </tr>
+        <tr>
+          <td><span class="ep-method">GET</span></td>
+          <td class="ep-path">/api/whale-tracker</td>
+          <td class="ep-price">0.005 USDC</td>
+          <td class="ep-desc">Holder concentration: Gini coefficient, Herfindahl index, top 20 holders, large transfer alerts. <code>?token=ETH</code></td>
+          <td><span class="ep-status real">LIVE ✓</span></td>
+        </tr>
+        <tr>
+          <td><span class="ep-method">GET</span></td>
+          <td class="ep-path">/api/yield-scanner</td>
+          <td class="ep-price">0.005 USDC</td>
+          <td class="ep-desc">Top DeFi yields across Aave, Compound, Morpho, Lido, Pendle, Ethena. Filter by chain, asset, TVL.</td>
+          <td><span class="ep-status real">LIVE ✓</span></td>
+        </tr>
+        <tr>
+          <td><span class="ep-method">GET</span></td>
+          <td class="ep-path">/api/funding-rates</td>
+          <td class="ep-price">0.008 USDC</td>
+          <td class="ep-desc">Perp funding rates on Hyperliquid, dYdX v4, Aevo, GMX, Drift, Vertex + arb spread ranking.</td>
+          <td><span class="ep-status real">LIVE ✓</span></td>
+        </tr>
+        <tr>
+          <td><span class="ep-method">GET</span></td>
+          <td class="ep-path">/api/wallet-profiler</td>
+          <td class="ep-price">0.008 USDC</td>
+          <td class="ep-desc">Wallet portfolio: holdings, DeFi positions, activity metrics, risk classification. <code>?address=0x…</code></td>
+          <td><span class="ep-status real">LIVE ✓</span></td>
+        </tr>
+        <tr style="opacity:0.6">
+          <td><span class="ep-method" style="border-color:var(--text-dim);color:var(--text-dim);background:transparent">GET</span></td>
+          <td class="ep-path" style="color:var(--text-dim)">/health</td>
+          <td class="ep-price" style="color:var(--text-dim)">FREE</td>
+          <td class="ep-desc">Server health check · returns status, uptime, pay-to address</td>
+          <td><span class="ep-status real">FREE</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="banner" style="background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);">
+      <span class="banner-icon">✅</span>
+      <div class="banner-text">
+        <strong>All 8 endpoints return live production data</strong>
+        Powered by CoinGecko · DefiLlama · Hyperliquid · GoPlus · Blockchair · public RPCs.
+      </div>
+    </div>
+
+    <!-- Live price preview -->
+    <div class="price-box">
+      <div class="price-hdr">
+        Live Preview — /api/price-feed
+        <span class="spinner" id="price-spinner"></span>
+      </div>
+      <div class="price-row">
+        <span class="pr-sym">BTC</span>
+        <span class="pr-val" id="lp-btc">Loading…</span>
+        <span class="pr-chg" id="lp-btc-c">─</span>
+      </div>
+      <div class="price-row">
+        <span class="pr-sym">ETH</span>
+        <span class="pr-val" id="lp-eth">Loading…</span>
+        <span class="pr-chg" id="lp-eth-c">─</span>
+      </div>
+      <div class="price-row">
+        <span class="pr-sym">SOL</span>
+        <span class="pr-val" id="lp-sol">Loading…</span>
+        <span class="pr-chg" id="lp-sol-c">─</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       HOW TO USE — x402-fetch CODE EXAMPLE
+  ══════════════════════════════════════════════════════════════ -->
+  <section class="fetch-section">
+    <div class="sec-label">Integration — x402-fetch</div>
+
+    <p class="fetch-intro">
+      Use <code>x402-fetch</code> (the official Coinbase x402 client) to automatically handle
+      the payment flow. No manual header wrangling — it intercepts 402s, signs USDC transfers on Base, and retries.
+    </p>
+
+    <div class="tab-wrap">
+      <div class="tab-bar">
+        <button class="tab-btn active" onclick="switchTab(this,'tab-ts')">TypeScript</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-py')">Python</button>
+        <button class="tab-btn" onclick="switchTab(this,'tab-curl')">cURL (manual)</button>
+      </div>
+
+      <!-- TypeScript -->
+      <div class="tab-pane active" id="tab-ts">
+        <div class="code-hdr">
+          <span class="code-lang">TypeScript · npm install x402-fetch viem</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         </div>
-        <div class="card-body">
-          <div class="card-desc">
-            Aggregated crypto prices: BTC, ETH, SOL + top 5 gainers/losers by 24h change.
-            Live data from CoinGecko with 60s server-side cache.
-          </div>
-          <div class="card-params">
-            <div class="params-label">Parameters</div>
-            <div class="param-row"><span class="param-name">—</span><span class="param-desc">No parameters required</span></div>
-          </div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">Shell · No Payment (→ 402)</span>
-              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-            <pre>curl http://localhost:4020/api/price-feed
+<pre><span class="kw">import</span> { withPaymentInterceptor } <span class="kw">from</span> <span class="str">'x402-fetch'</span>;
+<span class="kw">import</span> { createWalletClient, http } <span class="kw">from</span> <span class="str">'viem'</span>;
+<span class="kw">import</span> { base } <span class="kw">from</span> <span class="str">'viem/chains'</span>;
+<span class="kw">import</span> { privateKeyToAccount } <span class="kw">from</span> <span class="str">'viem/accounts'</span>;
 
-<span class="hl-dim"># Response 402:</span>
+<span class="cmt">// 1. Configure wallet with USDC on Base</span>
+<span class="kw">const</span> account = privateKeyToAccount(process.env.PRIVATE_KEY <span class="kw">as</span> `0x${<span class="kw">string</span>}`);
+<span class="kw">const</span> walletClient = createWalletClient({
+  account,
+  chain: base,
+  transport: http(),
+});
+
+<span class="cmt">// 2. Wrap fetch with x402 payment interceptor</span>
+<span class="kw">const</span> fetchWithPayment = withPaymentInterceptor(fetch, walletClient);
+
+<span class="cmt">// 3. Call endpoints — payment happens automatically on 402</span>
+<span class="kw">const</span> res = <span class="kw">await</span> fetchWithPayment(
+  <span class="str">'https://x402-api.fly.dev/api/price-feed'</span>
+);
+<span class="kw">const</span> { data } = <span class="kw">await</span> res.json();
+
+console.log(<span class="str">'BTC:'</span>, data.core[<span class="num">0</span>].price_usd);   <span class="cmt">// e.g. 98000</span>
+console.log(<span class="str">'ETH:'</span>, data.core[<span class="num">1</span>].price_usd);   <span class="cmt">// e.g. 2750</span>
+
+<span class="cmt">// Other endpoints — same pattern, different prices</span>
+<span class="kw">const</span> gas = <span class="kw">await</span> (
+  <span class="kw">await</span> fetchWithPayment(<span class="str">'https://x402-api.fly.dev/api/gas-tracker'</span>)
+).json();
+console.log(<span class="str">'ETH gas (normal):'</span>, gas.data.ethereum.gas_price_gwei.normal, <span class="str">'gwei'</span>);
+
+<span class="kw">const</span> yields = <span class="kw">await</span> (
+  <span class="kw">await</span> fetchWithPayment(
+    <span class="str">'https://x402-api.fly.dev/api/yield-scanner?chain=base&amp;min_tvl=1000000'</span>
+  )
+).json();
+console.log(<span class="str">'Top yield:'</span>, yields.data[<span class="num">0</span>].protocol, yields.data[<span class="num">0</span>].apy + <span class="str">'%'</span>);
+</pre>
+      </div>
+
+      <!-- Python -->
+      <div class="tab-pane" id="tab-py">
+        <div class="code-hdr">
+          <span class="code-lang">Python · pip install x402</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+<pre><span class="kw">from</span> x402.client <span class="kw">import</span> X402Client
+<span class="kw">from</span> eth_account <span class="kw">import</span> Account
+
+<span class="cmt"># 1. Load your private key</span>
+account = Account.from_key(os.environ[<span class="str">"PRIVATE_KEY"</span>])
+
+<span class="cmt"># 2. Create client (auto-handles 402 → pay → retry)</span>
+client = X402Client(
+    account=account,
+    chain_id=<span class="num">8453</span>,   <span class="cmt"># Base mainnet</span>
+    rpc_url=<span class="str">"https://mainnet.base.org"</span>,
+)
+
+<span class="cmt"># 3. Fetch prices — payment deducted automatically</span>
+data = client.get(<span class="str">"https://x402-api.fly.dev/api/price-feed"</span>)
+print(<span class="str">f"BTC: ${data['data']['core'][0]['price_usd']:,.0f}"</span>)
+
+<span class="cmt"># Token security scan</span>
+scan = client.get(
+    <span class="str">"https://x402-api.fly.dev/api/token-scanner"</span>,
+    params={<span class="str">"token"</span>: <span class="str">"PEPE"</span>, <span class="str">"chain"</span>: <span class="str">"ethereum"</span>}
+)
+print(<span class="str">f"PEPE risk: {scan['data']['risk_level']} ({scan['data']['risk_score']}/100)"</span>)
+</pre>
+      </div>
+
+      <!-- cURL manual -->
+      <div class="tab-pane" id="tab-curl">
+        <div class="code-hdr">
+          <span class="code-lang">Shell — Manual 402 flow</span>
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        </div>
+<pre><span class="cmt"># Step 1: Probe — get payment requirements (returns 402)</span>
+curl -s https://x402-api.fly.dev/api/price-feed | jq .
+
+<span class="cmt"># Response: 402 Payment Required</span>
 {
-  <span class="hl-key">"x402Version"</span>: <span class="hl-num">1</span>,
-  <span class="hl-key">"accepts"</span>: [{
-    <span class="hl-key">"scheme"</span>: <span class="hl-str">"exact"</span>,
-    <span class="hl-key">"network"</span>: <span class="hl-str">"base"</span>,
-    <span class="hl-key">"maxAmountRequired"</span>: <span class="hl-str">"1000"</span>,
-    <span class="hl-key">"payTo"</span>: <span class="hl-str">"0x60264c..."</span>
+  <span class="kw">"x402Version"</span>: <span class="num">1</span>,
+  <span class="kw">"error"</span>: <span class="str">"Payment Required"</span>,
+  <span class="kw">"accepts"</span>: [{
+    <span class="kw">"scheme"</span>: <span class="str">"exact"</span>,
+    <span class="kw">"network"</span>: <span class="str">"base"</span>,
+    <span class="kw">"asset"</span>: <span class="str">"0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"</span>,
+    <span class="kw">"payTo"</span>: <span class="str">"0x60264c480b67adb557efEd22Cf0e7ceA792DefB7"</span>,
+    <span class="kw">"maxAmountRequired"</span>: <span class="str">"1000"</span>
   }]
-}</pre>
-          </div>
-          <div class="code-block" style="margin-top:0.5rem">
-            <div class="code-header">
-              <span class="code-lang">Shell · With Payment (→ 200)</span>
-              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-            <pre>curl http://localhost:4020/api/price-feed \
-  -H <span class="hl-str">"X-PAYMENT: any-value"</span></pre>
-          </div>
-          <div id="live-prices" style="margin-top:1rem">
-            <div style="font-size:11px;color:var(--text-dim);margin-bottom:0.5rem;font-family:var(--font-mono)">
-              LIVE PREVIEW <span class="spinner" id="price-spinner"></span>
-            </div>
-            <div class="price-row">
-              <span class="price-sym">BTC</span>
-              <span class="price-val" id="lp-btc">Loading…</span>
-              <span class="price-chg" id="lp-btc-c">—</span>
-            </div>
-            <div class="price-row">
-              <span class="price-sym">ETH</span>
-              <span class="price-val" id="lp-eth">Loading…</span>
-              <span class="price-chg" id="lp-eth-c">—</span>
-            </div>
-            <div class="price-row">
-              <span class="price-sym">SOL</span>
-              <span class="price-val" id="lp-sol">Loading…</span>
-              <span class="price-chg" id="lp-sol-c">—</span>
-            </div>
-          </div>
-        </div>
-      </div>
+}
 
-      <!-- Whale Tracker -->
-      <div class="endpoint-card">
-        <div class="card-header">
-          <div>
-            <div class="card-method">GET</div>
-            <div class="card-path" style="margin-top:0.4rem">/api/whale-tracker</div>
-          </div>
-          <div class="card-price">
-            0.005 USDC
-            <small>per call</small>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="card-desc">
-            Token holder concentration analysis: whale distribution buckets, Gini coefficient,
-            Herfindahl index, top 20 holders, and recent large transfer alerts.
-          </div>
-          <div class="card-params">
-            <div class="params-label">Parameters</div>
-            <div class="param-row"><span class="param-name">?token</span><span class="param-desc">Token symbol (default: ETH)</span></div>
-            <div class="param-row"><span class="param-name">?chain</span><span class="param-desc">ethereum | base | solana | arbitrum</span></div>
-          </div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">Example Response</span>
-              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-            <pre>{
-  <span class="hl-key">"data"</span>: {
-    <span class="hl-key">"token"</span>: <span class="hl-str">"ETH"</span>,
-    <span class="hl-key">"holder_count"</span>: <span class="hl-num">1250000</span>,
-    <span class="hl-key">"concentration_metrics"</span>: {
-      <span class="hl-key">"top_10_pct"</span>: <span class="hl-num">38.2</span>,
-      <span class="hl-key">"gini_coefficient"</span>: <span class="hl-num">0.74</span>,
-      <span class="hl-key">"herfindahl_index"</span>: <span class="hl-num">0.021</span>
-    },
-    <span class="hl-key">"top_holders"</span>: [
-      { <span class="hl-key">"rank"</span>: <span class="hl-num">1</span>, <span class="hl-key">"label"</span>: <span class="hl-str">"Binance Hot Wallet"</span>,
-        <span class="hl-key">"percentage"</span>: <span class="hl-num">12.4</span>, <span class="hl-key">"wallet_type"</span>: <span class="hl-str">"exchange"</span> }
-    ]
-  }
-}</pre>
-          </div>
-        </div>
-      </div>
+<span class="cmt"># Step 2: Sign EIP-3009 transferWithAuthorization on Base
+# (use x402-fetch or Coinbase SDK — do not do this by hand in prod)</span>
 
-      <!-- Funding Rates -->
-      <div class="endpoint-card">
-        <div class="card-header">
-          <div>
-            <div class="card-method">GET</div>
-            <div class="card-path" style="margin-top:0.4rem">/api/funding-rates</div>
-          </div>
-          <div class="card-price">
-            0.008 USDC
-            <small>per call</small>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="card-desc">
-            Perpetual futures funding rate comparison across Hyperliquid, dYdX v4, Aevo, GMX,
-            Drift, and Vertex. Includes automated arb opportunity ranking with signal strength.
-          </div>
-          <div class="card-params">
-            <div class="params-label">Parameters</div>
-            <div class="param-row"><span class="param-name">?asset</span><span class="param-desc">BTC | ETH | SOL | SUI | … (default: all)</span></div>
-            <div class="param-row"><span class="param-name">?min_spread</span><span class="param-desc">Min arb spread in bps to include</span></div>
-          </div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">Example Response (arb_opportunities)</span>
-              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-            <pre>[{
-  <span class="hl-key">"asset"</span>: <span class="hl-str">"SOL"</span>,
-  <span class="hl-key">"long_venue"</span>: <span class="hl-str">"gmx"</span>,
-  <span class="hl-key">"long_rate"</span>: <span class="hl-num">0.000082</span>,
-  <span class="hl-key">"short_venue"</span>: <span class="hl-str">"drift"</span>,
-  <span class="hl-key">"short_rate"</span>: <span class="hl-num">0.000198</span>,
-  <span class="hl-key">"spread_bps"</span>: <span class="hl-num">3.8</span>,
-  <span class="hl-key">"annualized_arb_pct"</span>: <span class="hl-num">51.6</span>,
-  <span class="hl-key">"signal"</span>: <span class="hl-str"><span class="hl-green">"STRONG"</span></span>
-}]</pre>
-          </div>
-        </div>
-      </div>
+<span class="cmt"># Step 3: Retry with X-Payment header (base64 JSON payload)</span>
+curl -s https://x402-api.fly.dev/api/price-feed \
+  -H <span class="str">"X-Payment: &lt;base64-encoded-payment-payload&gt;"</span> | jq .data.core
 
-      <!-- Gas Tracker -->
-      <div class="endpoint-card">
-        <div class="card-header">
-          <div>
-            <div class="card-method">GET</div>
-            <div class="card-path" style="margin-top:0.4rem">/api/gas-tracker</div>
-          </div>
-          <div class="card-price">
-            0.001 USDC
-            <small>per call</small>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="card-desc">
-            Current gas prices across Ethereum, Base, Polygon, and Arbitrum.
-            Includes slow/normal/fast tiers and estimated USD costs for transfers, swaps, and NFT mints.
-          </div>
-          <div class="card-params">
-            <div class="params-label">Parameters</div>
-            <div class="param-row"><span class="param-name">—</span><span class="param-desc">No parameters required</span></div>
-          </div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">Example Response</span>
-              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-            <pre>{
-  <span class="hl-key">"data"</span>: {
-    <span class="hl-key">"ethereum"</span>: {
-      <span class="hl-key">"gas_price_gwei"</span>: {
-        <span class="hl-key">"slow"</span>: <span class="hl-num">22.4</span>,
-        <span class="hl-key">"normal"</span>: <span class="hl-num">28.0</span>,
-        <span class="hl-key">"fast"</span>: <span class="hl-num">39.2</span>
-      },
-      <span class="hl-key">"estimated_cost_usd"</span>: {
-        <span class="hl-key">"swap"</span>: { <span class="hl-key">"normal"</span>: <span class="hl-num">11.55</span> }
-      }
-    }
-  }
-}</pre>
-          </div>
-        </div>
+<span class="cmt"># Response: 200 OK — live crypto prices</span>
+[
+  { <span class="kw">"id"</span>: <span class="str">"bitcoin"</span>,  <span class="kw">"price_usd"</span>: <span class="num">98000</span>, <span class="kw">"change_24h_pct"</span>: <span class="num">2.1</span>  },
+  { <span class="kw">"id"</span>: <span class="str">"ethereum"</span>, <span class="kw">"price_usd"</span>: <span class="num">2750</span>,  <span class="kw">"change_24h_pct"</span>: <span class="num">-0.8</span> },
+  { <span class="kw">"id"</span>: <span class="str">"solana"</span>,   <span class="kw">"price_usd"</span>: <span class="num">185</span>,   <span class="kw">"change_24h_pct"</span>: <span class="num">4.2</span>  }
+]
+</pre>
       </div>
+    </div>
 
-      <!-- Token Scanner -->
-      <div class="endpoint-card">
-        <div class="card-header">
-          <div>
-            <div class="card-method">GET</div>
-            <div class="card-path" style="margin-top:0.4rem">/api/token-scanner</div>
-          </div>
-          <div class="card-price">
-            0.003 USDC
-            <small>per call</small>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="card-desc">
-            Token security &amp; risk analysis for rug-pull detection. Returns contract info,
-            holder stats, liquidity, and risk flags including honeypot detection and mint function checks.
-          </div>
-          <div class="card-params">
-            <div class="params-label">Parameters</div>
-            <div class="param-row"><span class="param-name">?token</span><span class="param-desc">Token symbol or address (default: PEPE)</span></div>
-            <div class="param-row"><span class="param-name">?chain</span><span class="param-desc">ethereum | base | arbitrum | polygon</span></div>
-          </div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">Example Response</span>
-              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-            <pre>{
-  <span class="hl-key">"data"</span>: {
-    <span class="hl-key">"symbol"</span>: <span class="hl-str">"PEPE"</span>,
-    <span class="hl-key">"risk_score"</span>: <span class="hl-num">15</span>,
-    <span class="hl-key">"risk_level"</span>: <span class="hl-str">"LOW"</span>,
-    <span class="hl-key">"risk_flags"</span>: {
-      <span class="hl-key">"is_verified"</span>: <span class="hl-bool">true</span>,
-      <span class="hl-key">"honeypot_risk"</span>: <span class="hl-bool">false</span>,
-      <span class="hl-key">"has_mint_function"</span>: <span class="hl-bool">false</span>,
-      <span class="hl-key">"liquidity_locked"</span>: <span class="hl-bool">true</span>
-    }
-  }
-}</pre>
-          </div>
-        </div>
+    <!-- Example agent code -->
+    <div class="code-wrap" style="margin-top:1.5rem">
+      <div class="code-hdr">
+        <span class="code-lang">TypeScript · Agent using multiple endpoints in one session</span>
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
       </div>
+<pre><span class="cmt">// DeFi scout agent — scans for arb opportunities using x402-api</span>
+<span class="kw">const</span> BASE_URL = <span class="str">'https://x402-api.fly.dev'</span>;
 
-      <!-- DEX Quotes -->
-      <div class="endpoint-card">
-        <div class="card-header">
-          <div>
-            <div class="card-method">GET</div>
-            <div class="card-path" style="margin-top:0.4rem">/api/dex-quotes</div>
-          </div>
-          <div class="card-price">
-            0.002 USDC
-            <small>per call</small>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="card-desc">
-            Compare swap quotes across Uniswap V3, SushiSwap, and 1inch Aggregator.
-            Returns price impact, fees, output amounts, and best route recommendation.
-          </div>
-          <div class="card-params">
-            <div class="params-label">Parameters</div>
-            <div class="param-row"><span class="param-name">?from</span><span class="param-desc">Input token symbol (default: ETH)</span></div>
-            <div class="param-row"><span class="param-name">?to</span><span class="param-desc">Output token symbol (default: USDC)</span></div>
-            <div class="param-row"><span class="param-name">?amount</span><span class="param-desc">Input amount (default: 1)</span></div>
-            <div class="param-row"><span class="param-name">?chain</span><span class="param-desc">ethereum | base | arbitrum | polygon</span></div>
-          </div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">Example Response</span>
-              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-            <pre>{
-  <span class="hl-key">"data"</span>: {
-    <span class="hl-key">"pair"</span>: <span class="hl-str">"ETH/USDC"</span>,
-    <span class="hl-key">"best_dex"</span>: <span class="hl-str">"1inch"</span>,
-    <span class="hl-key">"best_output"</span>: <span class="hl-num">2748.50</span>,
-    <span class="hl-key">"recommendation"</span>: {
-      <span class="hl-key">"dex"</span>: <span class="hl-str">"1inch Aggregator"</span>,
-      <span class="hl-key">"total_cost_usd"</span>: <span class="hl-num">8.50</span>
-    }
-  }
-}</pre>
-          </div>
-        </div>
-      </div>
+<span class="kw">async function</span> defiScout() {
+  <span class="cmt">// Pay 0.008 USDC — get funding rate arb opportunities</span>
+  <span class="kw">const</span> { arb_opportunities } = <span class="kw">await</span> (
+    <span class="kw">await</span> fetchWithPayment(`${BASE_URL}/api/funding-rates?asset=ETH`)
+  ).json();
 
-      <!-- Yield Scanner -->
-      <div class="endpoint-card">
-        <div class="card-header">
-          <div>
-            <div class="card-method">GET</div>
-            <div class="card-path" style="margin-top:0.4rem">/api/yield-scanner</div>
-          </div>
-          <div class="card-price">
-            0.005 USDC
-            <small>per call</small>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="card-desc">
-            Top DeFi yields across Aave, Compound, Morpho, Lido, Pendle, Ethena, and more.
-            Sorted by APY with risk tier classification and TVL data.
-          </div>
-          <div class="card-params">
-            <div class="params-label">Parameters</div>
-            <div class="param-row"><span class="param-name">?chain</span><span class="param-desc">ethereum | base | arbitrum | polygon | all</span></div>
-            <div class="param-row"><span class="param-name">?min_tvl</span><span class="param-desc">Minimum TVL in USD (default: 0)</span></div>
-            <div class="param-row"><span class="param-name">?asset</span><span class="param-desc">Filter by asset symbol</span></div>
-            <div class="param-row"><span class="param-name">?limit</span><span class="param-desc">Max results (default: 20, max: 50)</span></div>
-          </div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">Example Response</span>
-              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-            <pre>{
-  <span class="hl-key">"data"</span>: [{
-    <span class="hl-key">"protocol"</span>: <span class="hl-str">"Ethena"</span>,
-    <span class="hl-key">"asset"</span>: <span class="hl-str">"sUSDe"</span>,
-    <span class="hl-key">"apy"</span>: <span class="hl-num">18.5</span>,
-    <span class="hl-key">"tvl"</span>: <span class="hl-num">5600000000</span>,
-    <span class="hl-key">"risk_tier"</span>: <span class="hl-str">"high"</span>,
-    <span class="hl-key">"chain"</span>: <span class="hl-str">"ethereum"</span>
-  }]
-}</pre>
-          </div>
-        </div>
-      </div>
+  <span class="kw">const</span> strong = arb_opportunities.filter(o => o.signal === <span class="str">'STRONG'</span>);
+  <span class="kw">if</span> (!strong.length) <span class="kw">return</span> console.log(<span class="str">'No strong arb opportunities.'</span>);
 
-      <!-- Wallet Profiler -->
-      <div class="endpoint-card">
-        <div class="card-header">
-          <div>
-            <div class="card-method">GET</div>
-            <div class="card-path" style="margin-top:0.4rem">/api/wallet-profiler</div>
-          </div>
-          <div class="card-price">
-            0.008 USDC
-            <small>per call</small>
-          </div>
-        </div>
-        <div class="card-body">
-          <div class="card-desc">
-            Wallet portfolio analysis: holdings breakdown, DeFi positions, activity metrics,
-            and risk profile classification. Used by agents for wallet intelligence.
-          </div>
-          <div class="card-params">
-            <div class="params-label">Parameters</div>
-            <div class="param-row"><span class="param-name">?address</span><span class="param-desc">Ethereum address (0x…)</span></div>
-            <div class="param-row"><span class="param-name">?chain</span><span class="param-desc">ethereum | base | arbitrum | polygon | all</span></div>
-          </div>
-          <div class="code-block">
-            <div class="code-header">
-              <span class="code-lang">Example Response</span>
-              <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-            <pre>{
-  <span class="hl-key">"data"</span>: {
-    <span class="hl-key">"label"</span>: <span class="hl-str">"vitalik.eth"</span>,
-    <span class="hl-key">"total_value_usd"</span>: <span class="hl-num">12500000</span>,
-    <span class="hl-key">"risk_profile"</span>: {
-      <span class="hl-key">"classification"</span>: <span class="hl-str">"aggressive"</span>,
-      <span class="hl-key">"diversification_score"</span>: <span class="hl-num">8</span>
-    }
-  }
-}</pre>
-          </div>
-        </div>
-      </div>
+  <span class="kw">const</span> best = strong[<span class="num">0</span>];
+  console.log(<span class="str">`🎯 ${best.asset}: long ${best.long_venue}, short ${best.short_venue}`</span>);
+  console.log(<span class="str">`   Spread: ${best.spread_bps}bps · APR: ${best.annualized_arb_pct}%`</span>);
 
+  <span class="cmt">// Pay 0.008 USDC — check gas before execution</span>
+  <span class="kw">const</span> { data: gas } = <span class="kw">await</span> (
+    <span class="kw">await</span> fetchWithPayment(`${BASE_URL}/api/gas-tracker`)
+  ).json();
+  console.log(<span class="str">`⛽ Arbitrum gas: ${gas.arbitrum.gas_price_gwei.fast} gwei fast`</span>);
+}
+
+defiScout();
+<span class="cmt">// Total cost per run: 0.001 + 0.008 = 0.009 USDC (~$0.009)</span>
+</pre>
     </div>
   </section>
 
-  <!-- ── TRY IT ────────────────────────────────────────────────────────── -->
-  <section class="try-section">
-    <div class="section-label">Try It — Request/Response Flow</div>
-    <div class="try-grid">
-      <div class="try-panel">
-        <div class="panel-title">Step 1 — No Payment Header</div>
-        <div class="request-display">
-          <div class="req-label">Request</div>
-          <div class="req-line">
-            <span class="req-method">GET</span>
-            <span class="req-url">http://localhost:4020/api/price-feed</span>
-            <span class="req-proto">HTTP/1.1</span>
-          </div>
-          <div class="req-label" style="margin-top:1rem">Response <span class="status-402">402 Payment Required</span></div>
-          <div class="code-block" style="margin-top:0.5rem">
-            <pre style="font-size:10.5px">{
-  <span class="hl-key">"x402Version"</span>: <span class="hl-num">1</span>,
-  <span class="hl-key">"error"</span>: <span class="hl-str">"Payment Required"</span>,
-  <span class="hl-key">"accepts"</span>: [{
-    <span class="hl-key">"scheme"</span>: <span class="hl-str">"exact"</span>,
-    <span class="hl-key">"network"</span>: <span class="hl-str">"base"</span>,
-    <span class="hl-key">"asset"</span>: <span class="hl-str">"0x833589fC..."</span>,
-    <span class="hl-key">"payTo"</span>: <span class="hl-str">"0x60264c48..."</span>,
-    <span class="hl-key">"maxAmountRequired"</span>: <span class="hl-str">"1000"</span>,
-    <span class="hl-key">"extra"</span>: { <span class="hl-key">"chainId"</span>: <span class="hl-num">8453</span> }
+  <!-- ══════════════════════════════════════════════════════════════
+       REQUEST / RESPONSE FLOW
+  ══════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="sec-label">Request / Response Flow</div>
+    <div class="usage-grid">
+      <div class="usage-panel">
+        <div class="panel-hdr">Step 1 — Initial Request (→ 402)</div>
+        <div class="panel-body">
+          <div class="prompt-line"><span class="pm">GET</span> <span class="pu" id="req-url-1">/api/price-feed</span> <span class="pp">HTTP/1.1</span></div>
+          <div class="prompt-line"><span class="ph">Host:</span> <span class="pv" id="req-host">x402-api.fly.dev</span></div>
+
+          <div class="resp-label">Response <span class="s402">402 Payment Required</span></div>
+          <div class="code-wrap" style="margin-top:0.5rem">
+<pre style="font-size:11px">{
+  <span class="kw">"x402Version"</span>: <span class="num">1</span>,
+  <span class="kw">"error"</span>: <span class="str">"Payment Required"</span>,
+  <span class="kw">"accepts"</span>: [{
+    <span class="kw">"scheme"</span>: <span class="str">"exact"</span>,
+    <span class="kw">"network"</span>: <span class="str">"base"</span>,
+    <span class="kw">"asset"</span>: <span class="str">"0x833589fC..."</span>,
+    <span class="kw">"payTo"</span>: <span class="str">"0x60264c48..."</span>,
+    <span class="kw">"maxAmountRequired"</span>: <span class="str">"1000"</span>,
+    <span class="kw">"extra"</span>: { <span class="kw">"chainId"</span>: <span class="num">8453</span> }
   }]
 }</pre>
           </div>
         </div>
       </div>
 
-      <div class="try-panel">
-        <div class="panel-title">Step 2 — With X-PAYMENT Header</div>
-        <div class="request-display">
-          <div class="req-label">Request</div>
-          <div class="req-line">
-            <span class="req-method">GET</span>
-            <span class="req-url">http://localhost:4020/api/price-feed</span>
-            <span class="req-proto">HTTP/1.1</span>
-          </div>
-          <div class="req-line">
-            <span class="req-header-key">X-Payment:</span>
-            <span class="req-header-value">eyJ0eEhhc2giOiIweGFi...</span>
-          </div>
-          <div class="req-label" style="margin-top:1rem">Response <span class="status-200">200 OK</span></div>
-          <div class="code-block" style="margin-top:0.5rem">
-            <pre style="font-size:10.5px">{
-  <span class="hl-key">"timestamp"</span>: <span class="hl-str">"2026-02-21T08:00:00Z"</span>,
-  <span class="hl-key">"source"</span>: <span class="hl-str">"CoinGecko"</span>,
-  <span class="hl-key">"payment"</span>: {
-    <span class="hl-key">"verified"</span>: <span class="hl-bool">true</span>,
-    <span class="hl-key">"txHash"</span>: <span class="hl-str">"0xabc123..."</span>
+      <div class="usage-panel">
+        <div class="panel-hdr">Step 2 — With Payment (→ 200)</div>
+        <div class="panel-body">
+          <div class="prompt-line"><span class="pm">GET</span> <span class="pu" id="req-url-2">/api/price-feed</span> <span class="pp">HTTP/1.1</span></div>
+          <div class="prompt-line"><span class="ph">X-Payment:</span> <span class="pv">eyJ4NDAyVmVyc2lvbiI6MSwidHlwZSI6...</span></div>
+
+          <div class="resp-label">Response <span class="s200">200 OK</span></div>
+          <div class="code-wrap" style="margin-top:0.5rem">
+<pre style="font-size:11px">{
+  <span class="kw">"timestamp"</span>: <span class="str">"2026-02-22T09:35:00Z"</span>,
+  <span class="kw">"source"</span>: <span class="str">"CoinGecko"</span>,
+  <span class="kw">"payment"</span>: {
+    <span class="kw">"verified"</span>: <span class="bool">true</span>,
+    <span class="kw">"amount"</span>: <span class="str">"1000"</span>
   },
-  <span class="hl-key">"data"</span>: {
-    <span class="hl-key">"core"</span>: [
-      { <span class="hl-key">"id"</span>: <span class="hl-str">"bitcoin"</span>,
-        <span class="hl-key">"price_usd"</span>: <span class="hl-num">98000</span> }
+  <span class="kw">"data"</span>: {
+    <span class="kw">"core"</span>: [
+      { <span class="kw">"id"</span>: <span class="str">"bitcoin"</span>,
+        <span class="kw">"price_usd"</span>: <span class="num">98000</span>,
+        <span class="kw">"change_24h_pct"</span>: <span class="num">2.1</span> }
     ]
   }
 }</pre>
@@ -1160,187 +1130,171 @@
     </div>
   </section>
 
-  <!-- ── ARCHITECTURE ──────────────────────────────────────────────────── -->
-  <section class="arch-section">
-    <div class="section-label">Architecture &amp; Extending</div>
-    <div class="arch-grid">
-      <div class="arch-block">
-        <h3>Current Stack</h3>
-        <ul class="arch-list">
-          <li><strong>Express.js</strong> — HTTP server, port 4020</li>
-          <li><strong>x402 Middleware</strong> — src/middleware/x402.js</li>
-          <li><strong>Mock Verifier</strong> — src/services/mockVerifier.js</li>
-          <li><strong>CoinGecko API</strong> — live price data, 60s cache</li>
-          <li><strong>CORS + Morgan</strong> — logging &amp; cross-origin</li>
-        </ul>
-      </div>
-      <div class="arch-block">
-        <h3>To Make It Real (Production)</h3>
-        <ul class="arch-list">
-          <li>Replace <code style="font-family:var(--font-mono);font-size:11px;color:var(--blue)">mockVerifier.js</code> with ethers.js Base RPC call</li>
-          <li>Verify USDC tx to your <code style="font-family:var(--font-mono);font-size:11px;color:var(--blue)">payTo</code> address on Base</li>
-          <li>Add Redis/DB for replay attack protection (store used txHashes)</li>
-          <li>Wire up Moralis/Alchemy for real whale tracker data</li>
-          <li>Call real protocol APIs for funding rates (Hyperliquid, dYdX)</li>
-          <li>Register ERC-8004 agent identity on Base for discoverability</li>
-          <li>List on Apiosk for instant AI agent discovery</li>
-        </ul>
-      </div>
-    </div>
-  </section>
-
-  <!-- ── FOOTER ────────────────────────────────────────────────────────── -->
+  <!-- ══════════════════════════════════════════════════════════════
+       FOOTER
+  ══════════════════════════════════════════════════════════════ -->
   <footer>
-    <div class="footer-inner">
-      <div class="footer-brand">x402</div>
+    <div class="footer-row">
+      <div class="footer-brand">x402-api</div>
       <div class="footer-links">
         <a href="/health">Health</a>
         <a href="/api/endpoints">Catalog (JSON)</a>
+        <a href="/.well-known/agent-registration.json">ERC-8004</a>
+        <a href="https://basescan.org/nft/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432/18763" target="_blank" rel="noopener">BaseScan ↗</a>
         <a href="https://github.com/coinbase/x402" target="_blank" rel="noopener">x402 Spec ↗</a>
-        <a href="https://apiosk.com" target="_blank" rel="noopener">Apiosk ↗</a>
+        <a href="https://x402.org" target="_blank" rel="noopener">x402.org ↗</a>
       </div>
     </div>
     <div class="footer-note">
-      Network: Base (8453) · USDC · Pay-to: 0x60264c480b67adb557efEd22Cf0e7ceA792DefB7
+      ERC-8004 Agent #18763 · USDC on Base (8453) ·
+      Pay-to: 0x60264c480b67adb557efEd22Cf0e7ceA792DefB7 ·
+      x402 protocol · No API keys needed
     </div>
   </footer>
 
 </div><!-- /wrapper -->
 
+<!-- ══════════════════════════════════════════════════════════════
+     SCRIPTS — all inline, zero external deps
+══════════════════════════════════════════════════════════════ -->
 <script>
-/* ── Matrix rain background ──────────────────────────────────────────── */
-(function() {
-  const canvas = document.getElementById('matrix-canvas');
-  const ctx = canvas.getContext('2d');
+'use strict';
+
+/* ── Matrix rain ─────────────────────────────────────────────────── */
+(function(){
+  const cv = document.getElementById('matrix-canvas');
+  const ctx = cv.getContext('2d');
+  const chars = '0123456789ABCDEFabcdef$₿⟠◎ΞΨΔ∑∞≡±×÷01';
   let cols, drops;
 
   function init() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    cols = Math.floor(canvas.width / 20);
+    cv.width  = window.innerWidth;
+    cv.height = window.innerHeight;
+    cols = Math.floor(cv.width / 20);
     drops = Array(cols).fill(1);
   }
-
   function draw() {
-    ctx.fillStyle = 'rgba(6,10,15,0.05)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'rgba(4,8,13,0.06)';
+    ctx.fillRect(0, 0, cv.width, cv.height);
     ctx.fillStyle = '#00ff87';
-    ctx.font = '14px Share Tech Mono, monospace';
-
-    const chars = '0123456789ABCDEFabcdef$₿⟠◎ΞΨΔ∑∞≡±×÷';
+    ctx.font = '13px monospace';
     for (let i = 0; i < cols; i++) {
       const c = chars[Math.floor(Math.random() * chars.length)];
       ctx.fillText(c, i * 20, drops[i] * 20);
-      if (drops[i] * 20 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+      if (drops[i] * 20 > cv.height && Math.random() > 0.975) drops[i] = 0;
       drops[i]++;
     }
   }
-
   init();
   window.addEventListener('resize', init);
-  setInterval(draw, 50);
+  setInterval(draw, 55);
 })();
 
-/* ── Copy button ─────────────────────────────────────────────────────── */
+/* ── Tab switcher ────────────────────────────────────────────────── */
+function switchTab(btn, panelId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(panelId).classList.add('active');
+}
+
+/* ── Copy button ─────────────────────────────────────────────────── */
 function copyCode(btn) {
-  const pre = btn.closest('.code-block').querySelector('pre');
-  const text = pre.innerText || pre.textContent;
-  navigator.clipboard.writeText(text).then(() => {
+  const block = btn.closest('.code-wrap') || btn.closest('.tab-pane');
+  const pre = block.querySelector('pre');
+  navigator.clipboard.writeText(pre.innerText || pre.textContent).then(() => {
     btn.textContent = 'Copied!';
-    btn.classList.add('copied');
-    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    btn.classList.add('ok');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('ok'); }, 2000);
   });
 }
 
-/* ── Live price fetch ────────────────────────────────────────────────── */
-function fmt(n) {
+/* ── Formatting helpers ──────────────────────────────────────────── */
+function fmtPrice(n) {
   if (!n && n !== 0) return '—';
-  if (n > 10000) return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
-  if (n > 1)     return '$' + n.toFixed(2);
-  return '$' + n.toFixed(4);
+  if (n >= 10000) return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (n >= 1)     return '$' + n.toFixed(2);
+  return '$' + n.toPrecision(4);
 }
 function fmtChg(n) {
   if (n == null) return { text: '—', cls: '' };
-  const sign = n >= 0 ? '+' : '';
-  return { text: sign + n.toFixed(2) + '%', cls: n >= 0 ? 'pos' : 'neg' };
+  return { text: (n >= 0 ? '+' : '') + n.toFixed(2) + '%', cls: n >= 0 ? 'up' : 'dn' };
 }
 
-async function loadLivePrices() {
+/* ── Live price fetch (CoinGecko free API for landing page) ──────── */
+async function loadPrices() {
   try {
-    const r = await fetch('/api/price-feed', { headers: { 'X-Payment': 'landing-page-preview' } });
-    const j = await r.json();
-
-    if (!j.data) return;
-    const core = j.data.core || [];
+    const ids = 'bitcoin,ethereum,solana,sui,hyperliquid,chainlink';
+    const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
+    const raw = await r.json();
 
     const map = {};
-    for (const c of core) map[c.id] = c;
+    for (const [id, d] of Object.entries(raw)) {
+      map[id] = { id, price_usd: d.usd, change_24h_pct: d.usd_24h_change };
+    }
 
-    // Full price section
-    const set = (idEl, valEl, chgEl, id) => {
-      const d = map[id];
-      if (!d) return;
-      document.getElementById(valEl).textContent = fmt(d.price_usd);
-      const chg = fmtChg(d.change_24h_pct);
-      const el = document.getElementById(chgEl);
-      el.textContent = chg.text;
-      el.className = 'price-chg ' + chg.cls;
-    };
-    set(null, 'lp-btc', 'lp-btc-c', 'bitcoin');
-    set(null, 'lp-eth', 'lp-eth-c', 'ethereum');
-    set(null, 'lp-sol', 'lp-sol-c', 'solana');
+    function setPrice(btcId, valId, chgId, val2Id, chg2Id) {
+      const d = map[btcId]; if (!d) return;
+      const v = fmtPrice(d.price_usd);
+      const c = fmtChg(d.change_24h_pct);
+      if (valId) document.getElementById(valId).textContent = v;
+      if (chgId) { const el = document.getElementById(chgId); el.textContent = c.text; el.className = 'pr-chg ' + c.cls; }
+      if (val2Id) document.getElementById(val2Id).textContent = v;
+      if (chg2Id) { const el = document.getElementById(chg2Id); el.textContent = c.text; el.className = c.cls; }
+    }
 
-    document.getElementById('price-spinner').style.display = 'none';
+    function setTicker(id, vid, cid, vid2, cid2) {
+      const d = map[id]; if (!d) return;
+      const v = fmtPrice(d.price_usd);
+      const c = fmtChg(d.change_24h_pct);
+      document.getElementById(vid).textContent  = v;
+      document.getElementById(cid).textContent  = c.text;
+      document.getElementById(cid).className    = c.cls;
+      document.getElementById(vid2).textContent = v;
+      document.getElementById(cid2).textContent = c.text;
+      document.getElementById(cid2).className   = c.cls;
+    }
+
+    // Live price box
+    setPrice('bitcoin',  'lp-btc', 'lp-btc-c', null, null);
+    setPrice('ethereum', 'lp-eth', 'lp-eth-c', null, null);
+    setPrice('solana',   'lp-sol', 'lp-sol-c', null, null);
 
     // Ticker
-    const tickerMap = {
-      'bitcoin': ['t-btc','t-btc-c','t-btc2','t-btc-c2'],
-      'ethereum': ['t-eth','t-eth-c','t-eth2','t-eth-c2'],
-      'solana': ['t-sol','t-sol-c','t-sol2','t-sol-c2'],
-    };
+    setTicker('bitcoin',  't-btc', 't-btc-c',  't-btc2', 't-btc-c2');
+    setTicker('ethereum', 't-eth', 't-eth-c',  't-eth2', 't-eth-c2');
+    setTicker('solana',   't-sol', 't-sol-c',  't-sol2', 't-sol-c2');
+    setTicker('hyperliquid', 't-hype', 't-hype-c', 't-hype2', 't-hype-c2');
+    setTicker('chainlink',   't-link', 't-link-c', 't-link2', 't-link-c2');
+    setTicker('sui',         't-sui',  't-sui-c',  't-sui2',  't-sui-c2');
 
-    // Top movers for ticker
-    const gainers = j.data.top_movers?.gainers || [];
-    const hypeData = gainers[0];
-    const suiData = gainers[1];
-
-    for (const [id, [vid, cid, vid2, cid2]] of Object.entries(tickerMap)) {
-      const d = map[id];
-      if (!d) continue;
-      const chg = fmtChg(d.change_24h_pct);
-      document.getElementById(vid).textContent = fmt(d.price_usd);
-      document.getElementById(cid).textContent = chg.text;
-      document.getElementById(cid).className = chg.cls;
-      document.getElementById(vid2).textContent = fmt(d.price_usd);
-      document.getElementById(cid2).textContent = chg.text;
-      document.getElementById(cid2).className = chg.cls;
-    }
-
-    if (hypeData) {
-      document.getElementById('t-hype').textContent = fmt(hypeData.price_usd);
-      document.getElementById('t-hype-c').textContent = fmtChg(hypeData.change_24h_pct).text;
-      document.getElementById('t-hype2').textContent = fmt(hypeData.price_usd);
-      document.getElementById('t-hype-c2').textContent = fmtChg(hypeData.change_24h_pct).text;
-    }
-    if (suiData) {
-      document.getElementById('t-sui').textContent = fmt(suiData.price_usd);
-      document.getElementById('t-sui-c').textContent = fmtChg(suiData.change_24h_pct).text;
-      document.getElementById('t-sui2').textContent = fmt(suiData.price_usd);
-      document.getElementById('t-sui-c2').textContent = fmtChg(suiData.change_24h_pct).text;
-    }
-
+    document.getElementById('price-spinner').style.display = 'none';
   } catch (e) {
-    console.warn('[x402] price fetch failed:', e.message);
-    document.getElementById('lp-btc').textContent = 'unavailable';
-    document.getElementById('lp-eth').textContent = 'unavailable';
-    document.getElementById('lp-sol').textContent = 'unavailable';
+    console.warn('[x402] price fetch:', e.message);
+    ['lp-btc','lp-eth','lp-sol'].forEach(id => {
+      document.getElementById(id).textContent = 'unavailable';
+    });
     document.getElementById('price-spinner').style.display = 'none';
   }
 }
 
-// Load prices on mount and refresh every 60s
-loadLivePrices();
-setInterval(loadLivePrices, 60_000);
+loadPrices();
+setInterval(loadPrices, 60_000);
+
+/* ── Update server URL in identity cards ─────────────────────────── */
+(function() {
+  const base = window.location.origin;
+  const urlEl = document.getElementById('server-url');
+  if (urlEl) urlEl.textContent = base;
+  const regLink = document.getElementById('reg-link');
+  if (regLink) regLink.href = base + '/.well-known/agent-registration.json';
+  const reqHost = document.getElementById('req-host');
+  if (reqHost) reqHost.textContent = window.location.host;
+  const reqUrl1 = document.getElementById('req-url-1');
+  if (reqUrl1) reqUrl1.textContent = base + '/api/price-feed';
+  const reqUrl2 = document.getElementById('req-url-2');
+  if (reqUrl2) reqUrl2.textContent = base + '/api/price-feed';
+})();
 </script>
 
 </body>

@@ -36,6 +36,7 @@ const dexQuotesRouter = require('./routes/dexQuotes');
 const yieldScannerRouter = require('./routes/yieldScanner');
 const walletProfilerRouter = require('./routes/walletProfiler');
 const { PAY_TO_ADDRESS } = require('./middleware/x402');
+const { BAZAAR_SCHEMAS } = require('./bazaar-schemas');
 
 const app = express();
 const PORT = process.env.PORT || 4020;
@@ -181,6 +182,38 @@ app.get('/api/endpoints', (req, res) => {
       },
     ],
   });
+});
+
+// ── Bazaar Discovery Endpoint ─────────────────────────────────────────────────
+// Machine-readable catalog for AI agents — compatible with x402 Bazaar extension
+// @see https://docs.cdp.coinbase.com/x402/bazaar
+app.get('/api/bazaar', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.json({
+    x402Version: 1,
+    bazaarCompatible: true,
+    server: 'x402-api-server',
+    description: 'Pay-per-call crypto/DeFi data API. No API keys, no subscriptions. Pay USDC per request on Base.',
+    pay_to: PAY_TO_ADDRESS,
+    network: 'eip155:8453',
+    asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
+    asset_symbol: 'USDC',
+    facilitator: 'https://x402.org/facilitator',
+    resources: Object.entries(BAZAAR_SCHEMAS).map(([path, schema]) => ({
+      path,
+      method: 'GET',
+      schema,
+    })),
+    _note: 'extensions.bazaar schema included in every 402 Payment Required response',
+  });
+});
+
+// ── ERC-8004 Domain Verification ─────────────────────────────────────────────
+app.get('/.well-known/agent-registration.json', (req, res) => {
+  const regPath = path.join(__dirname, '..', 'agent-registration.json');
+  res.set('Content-Type', 'application/json');
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.sendFile(regPath);
 });
 
 app.get('/', (req, res) => {

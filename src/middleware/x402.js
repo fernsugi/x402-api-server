@@ -13,6 +13,7 @@
 'use strict';
 
 const { verifyPayment } = require('../services/verifier');
+const { BAZAAR_SCHEMAS } = require('../bazaar-schemas');
 
 const PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || '0x60264c480b67adb557efEd22Cf0e7ceA792DefB7';
 const FACILITATOR_URL = 'https://x402.org/facilitator';
@@ -44,6 +45,9 @@ function requirePayment(config) {
 
     // ── No payment → 402 ────────────────────────────────────────────────
     if (!paymentHeader) {
+      // Look up Bazaar discovery schema for this endpoint
+      const bazaarExtension = BAZAAR_SCHEMAS[resource] || null;
+
       return res.status(402).json({
         x402Version: 1,
         error: 'Payment Required',
@@ -57,7 +61,8 @@ function requirePayment(config) {
             resource: `${req.protocol}://${req.get('host')}${resource}`,
             description,
             mimeType: 'application/json',
-            outputSchema: null,
+            // v1 output schema field (deprecated but readable by older clients)
+            outputSchema: bazaarExtension?.bazaar?.info?.output || null,
             extra: {
               name: 'USD Coin',
               version: '2',
@@ -66,6 +71,9 @@ function requirePayment(config) {
             },
           },
         ],
+        // v2-compatible Bazaar discovery extension — agents read this directly
+        // Indexed by Coinbase facilitator when mainnet support is added
+        extensions: bazaarExtension ? { bazaar: bazaarExtension.bazaar } : {},
       });
     }
 

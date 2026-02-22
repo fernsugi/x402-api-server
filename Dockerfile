@@ -6,8 +6,9 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy source
+# Copy source and public assets
 COPY src/ src/
+COPY agent-registration.json ./
 
 # Runtime
 ENV NODE_ENV=production

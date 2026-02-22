@@ -1,70 +1,28 @@
 {
   "type": "https://eips.ethereum.org/EIPS/eip-8004#registration-v1",
-  "name": "Sentient DeFi Oracle",
-  "description": "Pay-per-call DeFi intelligence API for AI agents. Real-time crypto prices, whale tracking, funding rate arbitrage, DEX quotes, gas optimization, token risk scanning, yield farming data, and wallet profiling. Powered by x402 micropayments on Base.",
+  "name": "x402-api",
+  "description": "Pay-per-call DeFi & crypto data API. 8 endpoints: price feeds, whale tracking, gas tracker, DEX quotes, token scanner, yield scanner, funding rates, wallet profiler. Powered by x402 protocol — USDC micropayments on Base, no API keys needed.",
+  "image": "",
   "services": [
     {
-      "type": "x402",
-      "url": "https://sentient-defi.fly.dev",
-      "version": "2026-02-21",
-      "endpoints": [
-        {
-          "path": "/api/price-feed",
-          "description": "Aggregated crypto prices with top gainers/losers",
-          "price": "0.001 USDC"
-        },
-        {
-          "path": "/api/gas-tracker",
-          "description": "Multi-chain gas prices with speed tiers and USD estimates",
-          "price": "0.001 USDC"
-        },
-        {
-          "path": "/api/dex-quotes",
-          "description": "Best swap route across Uniswap/SushiSwap/1inch",
-          "price": "0.002 USDC"
-        },
-        {
-          "path": "/api/token-scanner",
-          "description": "Token risk analysis — scam detection, honeypot check, liquidity audit",
-          "price": "0.003 USDC"
-        },
-        {
-          "path": "/api/whale-tracker",
-          "description": "Top holder concentration, Gini coefficient, whale alerts",
-          "price": "0.005 USDC"
-        },
-        {
-          "path": "/api/yield-scanner",
-          "description": "Yield farming opportunities across 12 protocols",
-          "price": "0.005 USDC"
-        },
-        {
-          "path": "/api/funding-rates",
-          "description": "Funding rate comparison and arbitrage opportunity scanner",
-          "price": "0.008 USDC"
-        },
-        {
-          "path": "/api/wallet-profiler",
-          "description": "Full wallet analysis — portfolio, DeFi positions, risk score",
-          "price": "0.008 USDC"
-        }
-      ]
+      "name": "web",
+      "endpoint": "https://x402-api.fly.dev/"
     },
     {
-      "type": "mcp",
-      "url": "https://sentient-defi.fly.dev/mcp",
-      "version": "2026-02-21",
-      "mcpTools": [
-        "get_crypto_prices",
-        "analyze_whale_concentration",
-        "compare_funding_rates",
-        "list_available_endpoints"
-      ]
+      "name": "x402",
+      "endpoint": "https://x402-api.fly.dev/",
+      "version": "1"
     }
   ],
-  "payment": {
-    "chain": "base",
-    "address": "0x60264c480b67adb557efEd22Cf0e7ceA792DefB7"
-  },
-  "owner": "Sentient Studio"
+  "x402Support": true,
+  "active": true,
+  "registrations": [
+    {
+      "agentId": 18763,
+      "agentRegistry": "eip155:8453:0x8004A169FB4a3325136EB29fA0ceB6D2e539a432"
+    }
+  ],
+  "supportedTrust": [
+    "reputation"
+  ]
 }

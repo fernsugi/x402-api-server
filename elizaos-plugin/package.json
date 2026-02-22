@@ -1,0 +1,66 @@
+{
+  "name": "@x402-api/elizaos-plugin",
+  "version": "1.0.0",
+  "description": "ElizaOS plugin for Sugi's x402 DeFi API — pay-per-call crypto/DeFi intelligence via HTTP 402 + USDC on Base",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "files": [
+    "dist",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc --outDir dist --declaration",
+    "dev": "tsc --outDir dist --declaration --watch",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "elizaos",
+    "eliza",
+    "plugin",
+    "x402",
+    "defi",
+    "crypto",
+    "ai-agent",
+    "usdc",
+    "base",
+    "price-feed",
+    "gas-tracker",
+    "dex",
+    "yield",
+    "whale-tracker"
+  ],
+  "author": "Sugi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sugi/x402-api-server"
+  },
+  "peerDependencies": {
+    "@elizaos/core": ">=1.0.0"
+  },
+  "devDependencies": {
+    "@elizaos/core": "^1.7.2",
+    "@types/node": "^22.19.11",
+    "typescript": "^5.9.3"
+  },
+  "optionalDependencies": {
+    "x402-fetch": "^1.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
