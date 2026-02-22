@@ -1,0 +1,66 @@
+{
+  "name": "@x402-api/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Sugi's x402 DeFi API — gives Claude, ChatGPT, and MCP-compatible agents access to pay-per-call crypto/DeFi data",
+  "type": "module",
+  "bin": {
+    "x402-api-mcp": "./dist/index.js"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "clean": "rm -rf dist",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "x402",
+    "defi",
+    "crypto",
+    "ai-agent",
+    "claude",
+    "usdc",
+    "base",
+    "price-feed",
+    "gas-tracker",
+    "dex",
+    "yield",
+    "whale-tracker",
+    "funding-rates",
+    "wallet-profiler"
+  ],
+  "author": "Sugi",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sugi/x402-api-server",
+    "directory": "mcp-server"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0"
+  },
+  "optionalDependencies": {
+    "viem": "^2.0.0",
+    "x402-fetch": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.11",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

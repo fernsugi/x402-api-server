@@ -216,6 +216,55 @@ app.get('/.well-known/agent-registration.json', (req, res) => {
   res.sendFile(regPath);
 });
 
+// ── LLMs.txt (AI-readable API description) ──────────────────────────────────
+app.get('/llms.txt', (req, res) => {
+  res.set('Content-Type', 'text/plain');
+  res.set('Cache-Control', 'public, max-age=86400');
+  res.send(`# x402-api — Pay-Per-Call DeFi Data API for AI Agents
+# https://x402-api.fly.dev
+# ERC-8004 Agent #18763 on Base
+
+## Overview
+x402-api is a DeFi and crypto data API that uses the x402 protocol (HTTP 402 Payment Required).
+AI agents pay per request in USDC on Base — no API keys, no subscriptions, no accounts needed.
+
+## Endpoints
+All endpoints require USDC payment via the x402 protocol.
+
+GET /api/price-feed      $0.001 USDC  BTC/ETH/SOL prices + top movers/losers (CoinGecko)
+GET /api/gas-tracker     $0.001 USDC  Multi-chain gas: ETH, Base, Polygon, Arbitrum
+GET /api/dex-quotes      $0.002 USDC  DEX swap quotes (params: ?from=ETH&to=USDC&amount=1)
+GET /api/token-scanner   $0.003 USDC  Token security analysis (params: ?token=PEPE)
+GET /api/whale-tracker   $0.005 USDC  Large transfer alerts + holder concentration (params: ?token=ETH)
+GET /api/yield-scanner   $0.005 USDC  Top DeFi yields across protocols (params: ?chain=ethereum&min_tvl=1000000)
+GET /api/funding-rates   $0.008 USDC  Perp funding rates on Hyperliquid + others (params: ?asset=ETH)
+GET /api/wallet-profiler $0.008 USDC  Wallet portfolio + activity analysis (params: ?address=0x...)
+
+## Free Endpoints
+GET /health                           Server health check
+GET /api/endpoints                    Machine-readable endpoint catalog (JSON)
+GET /api/bazaar                       Bazaar discovery schemas (JSON)
+GET /.well-known/agent-registration.json  ERC-8004 registration file
+
+## Payment
+Network: Base (chain ID 8453)
+Asset: USDC (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)
+Pay-to: 0x60264c480b67adb557efEd22Cf0e7ceA792DefB7
+Protocol: x402 (EIP-3009 transferWithAuthorization)
+
+## Integration
+npm: x402-fetch (auto-handles 402 payment flow)
+MCP: @x402-api/mcp-server
+ElizaOS: @x402-api/elizaos-plugin
+
+## Links
+Landing: https://x402-api.fly.dev
+BaseScan: https://basescan.org/nft/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432/18763
+GitHub: https://github.com/fernsugi/x402-api-server
+Blog: https://dev.to/fernsugi/i-built-a-defi-data-api-where-ai-agents-pay-per-call-heres-how-oeg
+`);
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'views', 'index.html'));
 });
