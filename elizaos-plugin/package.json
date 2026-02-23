@@ -1,6 +1,6 @@
 {
   "name": "@x402-api/elizaos-plugin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "ElizaOS plugin for Sugi's x402 DeFi API — pay-per-call crypto/DeFi intelligence via HTTP 402 + USDC on Base",
   "type": "module",
   "main": "dist/index.js",
