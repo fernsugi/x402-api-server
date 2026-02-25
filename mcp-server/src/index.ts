@@ -125,18 +125,26 @@ async function callApi(
   const fetchFn = await getX402Fetch();
 
   let response: Response;
+  const controller = new AbortController();
+  const fetchTimeout = setTimeout(() => controller.abort(), 30_000);
   try {
     response = await fetchFn(url.toString(), {
       headers: {
         'Accept': 'application/json',
         'User-Agent': `x402-api-mcp/${SERVER_VERSION}`,
       },
+      signal: controller.signal,
     });
   } catch (err) {
+    const isTimeout = err instanceof Error && err.name === 'AbortError';
     throw new McpError(
       ErrorCode.InternalError,
-      `Network error calling ${endpoint}: ${err instanceof Error ? err.message : String(err)}`
+      isTimeout
+        ? `Request to ${endpoint} timed out after 30 seconds`
+        : `Network error calling ${endpoint}: ${err instanceof Error ? err.message : String(err)}`
     );
+  } finally {
+    clearTimeout(fetchTimeout);
   }
 
   if (response.status === 402) {

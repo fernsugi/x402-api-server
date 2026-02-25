@@ -75,10 +75,25 @@ function loadNonces() {
   }
 }
 
+/** Evict transient nonce entries older than 24 h from the in-memory map.
+ *  'settled' entries are kept indefinitely for replay protection.
+ *  'pending' and 'failed' entries older than 24 h are safe to remove.
+ */
+function evictStaleNonces(nonces) {
+  const cutoff = Date.now() - 24 * 60 * 60 * 1000; // 24 hours ago
+  for (const [key, val] of nonces.entries()) {
+    if (val.state !== 'settled' && val.timestamp < cutoff) {
+      nonces.delete(key);
+    }
+  }
+}
+
 /** Flush pending + settled nonces to disk (failed states are NOT persisted — they allow retry). */
 function saveNonces(nonces) {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    // Evict stale transient entries before persisting to prevent unbounded growth
+    evictStaleNonces(nonces);
     // Only persist 'pending' and 'settled' — 'failed' allows retry, no need to persist
     const toSave = [...nonces.entries()].filter(([, v]) => v.state !== 'failed');
     fs.writeFileSync(NONCE_FILE, JSON.stringify(toSave), 'utf8');
@@ -292,9 +307,18 @@ async function verifyByTxHash(decoded, config) {
     return { valid: false, reason: 'Invalid transaction hash format (expected 0x + 64 hex chars)' };
   }
 
-  // ── Rate limit (best-effort; payer may be missing before on-chain lookup) ──
-  if (payer && !checkRateLimit(payer)) {
-    return { valid: false, reason: `Rate limit exceeded for address ${payer} — max ${RATE_LIMIT_MAX} attempts/minute` };
+  // ── Rate limit — apply by payer address when available, otherwise by txHash prefix ──
+  // This prevents spam even when the caller omits a payer field.
+  if (payer) {
+    if (!checkRateLimit(payer)) {
+      return { valid: false, reason: `Rate limit exceeded for address ${payer} — max ${RATE_LIMIT_MAX} attempts/minute` };
+    }
+  } else {
+    // Use first 10 hex chars of txHash as a coarse dedup key for unsigned submissions
+    const hashKey = `txhash:${txHash.slice(0, 12)}`;
+    if (!checkRateLimit(hashKey)) {
+      return { valid: false, reason: `Rate limit exceeded for this transaction hash — max ${RATE_LIMIT_MAX} attempts/minute` };
+    }
   }
 
   // ── Replay check ────────────────────────────────────────────────────
@@ -387,6 +411,16 @@ async function verifyByTxHash(decoded, config) {
  *   See the submitSettlement TODO above.
  */
 async function verifyEIP3009(signature, auth, config) {
+  try {
+  // ── Required-field validation ────────────────────────────────────────
+  // Malformed payloads must return 402 (invalid), not crash with 500.
+  const REQUIRED_FIELDS = ['from', 'to', 'value', 'validAfter', 'validBefore', 'nonce'];
+  for (const field of REQUIRED_FIELDS) {
+    if (auth[field] === undefined || auth[field] === null || auth[field] === '') {
+      return { valid: false, reason: `Missing required authorization field: ${field}` };
+    }
+  }
+
   // ── Rate limit ───────────────────────────────────────────────────────
   if (auth.from && !checkRateLimit(auth.from)) {
     return {
@@ -507,6 +541,12 @@ async function verifyEIP3009(signature, auth, config) {
     nonce: auth.nonce,
     network: 'base',
   };
+  } catch (err) {
+    // Catch-all: any unexpected error in EIP-3009 verification returns a clean
+    // invalid response instead of propagating as a 500.
+    console.error('[verifier] Unexpected error in verifyEIP3009:', err.message);
+    return { valid: false, reason: `Payment verification error: ${err.message}` };
+  }
 }
 
 module.exports = { verifyPayment };

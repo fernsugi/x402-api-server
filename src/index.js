@@ -254,7 +254,7 @@ GET /.well-known/agent-registration.json  ERC-8004 registration file
 ## Payment
 Network: Base (chain ID 8453)
 Asset: USDC (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)
-Pay-to: 0x60264c480b67adb557efEd22Cf0e7ceA792DefB7
+Pay-to: ${PAY_TO_ADDRESS}
 Protocol: x402 (EIP-3009 transferWithAuthorization)
 
 ## Integration
