@@ -129,7 +129,7 @@ router.get(
     maxAmountRequired: PRICE_MICRO,
   }),
   (req, res) => {
-    const token = (req.query.token || 'ETH').toString().trim().toUpperCase().slice(0, 20);
+    const token = (req.query.token || 'ETH').toString().trim().slice(0, 66);
     const chain = (req.query.chain || 'ethereum').toString().trim().toLowerCase();
 
     const validChains = ['ethereum', 'base', 'solana', 'arbitrum', 'optimism'];

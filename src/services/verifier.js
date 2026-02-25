@@ -547,6 +547,8 @@ async function verifyEIP3009(signature, auth, config) {
   } catch (err) {
     // Catch-all: any unexpected error in EIP-3009 verification returns a clean
     // invalid response instead of propagating as a 500.
+    // Reset nonce to 'failed' so it doesn't get stuck in 'pending' forever.
+    if (nonceKey) setNonceState(nonceKey, 'failed');
     console.error('[verifier] Unexpected error in verifyEIP3009:', err.message);
     return { valid: false, reason: `Payment verification error: ${err.message}` };
   }

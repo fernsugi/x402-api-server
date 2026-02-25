@@ -211,7 +211,7 @@ function formatResult(result: ApiResponse, toolName: string): string {
     message += `2. Encode the payment as Base64 JSON and send it as the \`X-Payment\` header:\n\n`;
     message += `   \`\`\`js\n`;
     message += `   // After sending the transaction on-chain:\n`;
-    message += `   const payment = Buffer.from(JSON.stringify({ txHash: "0x<your_tx_hash>" })).toString("base64");\n`;
+    message += `   const payment = Buffer.from(JSON.stringify({ txHash: "0x<your_tx_hash>", payer: "0x<your_wallet_address>" })).toString("base64");\n`;
     message += `   // Then set the header: X-Payment: <payment>\n`;
     message += `   \`\`\`\n\n`;
     message += `   Or for EIP-3009 transferWithAuthorization (advanced):\n\n`;
