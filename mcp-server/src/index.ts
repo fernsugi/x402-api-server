@@ -275,6 +275,10 @@ const TOOLS = [
           type: 'string',
           description: 'Amount to swap (e.g. "1.5" for 1.5 ETH)',
         },
+        chain: {
+          type: 'string',
+          description: 'Chain to query (e.g. "ethereum", "base", "arbitrum"). Defaults to "ethereum".',
+        },
       },
       required: ['from', 'to', 'amount'],
     },
@@ -291,6 +295,10 @@ const TOOLS = [
         token: {
           type: 'string',
           description: 'Token contract address (0x...) or symbol (e.g. "PEPE", "UNI")',
+        },
+        chain: {
+          type: 'string',
+          description: 'Chain to scan on (e.g. "ethereum", "base", "arbitrum", "polygon"). Defaults to "ethereum".',
         },
       },
       required: ['token'],
@@ -309,6 +317,10 @@ const TOOLS = [
           type: 'string',
           description: 'Token contract address (0x...) or symbol (e.g. "ETH", "PEPE")',
         },
+        chain: {
+          type: 'string',
+          description: 'Chain to query (e.g. "ethereum", "base", "solana", "arbitrum"). Defaults to "ethereum".',
+        },
       },
       required: ['token'],
     },
@@ -317,7 +329,7 @@ const TOOLS = [
     name: 'scan_yields',
     description:
       'Scan top DeFi yield opportunities across protocols: Aave, Compound, Morpho, Lido, Pendle, and more. ' +
-      'Filter by chain and minimum TVL. Returns APY, TVL, risk score, and protocol details. ' +
+      'Filter by chain, asset, and minimum TVL. Returns APY, TVL, risk score, and protocol details. ' +
       'Costs 0.005 USDC per call (x402 micropayment on Base).',
     inputSchema: {
       type: 'object',
@@ -328,9 +340,17 @@ const TOOLS = [
             'Blockchain to filter by (e.g. "ethereum", "base", "arbitrum", "polygon"). ' +
             'Omit for all chains.',
         },
+        asset: {
+          type: 'string',
+          description: 'Filter by asset symbol (e.g. "ETH", "USDC", "stETH"). Omit for all assets.',
+        },
         min_tvl: {
           type: 'number',
           description: 'Minimum TVL in USD (e.g. 1000000 for $1M). Omit for no minimum.',
+        },
+        limit: {
+          type: 'number',
+          description: 'Maximum number of results to return (1–50). Defaults to 20.',
         },
       },
       required: [],
@@ -349,6 +369,10 @@ const TOOLS = [
           type: 'string',
           description: 'Asset symbol (e.g. "BTC", "ETH", "SOL"). Returns all assets if omitted.',
         },
+        min_spread: {
+          type: 'number',
+          description: 'Filter for arbitrage spreads >= N basis points (e.g. 0.5). Omit for no filter.',
+        },
       },
       required: [],
     },
@@ -366,6 +390,10 @@ const TOOLS = [
         address: {
           type: 'string',
           description: 'Ethereum or Base wallet address (0x...)',
+        },
+        chain: {
+          type: 'string',
+          description: 'Filter by chain (e.g. "ethereum", "base", "arbitrum", "polygon"). Defaults to "all".',
         },
       },
       required: ['address'],
@@ -419,6 +447,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         from: params.from,
         to: params.to,
         amount: params.amount,
+        chain: params.chain,
       });
       break;
 
@@ -426,32 +455,46 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (!params.token) {
         throw new McpError(ErrorCode.InvalidParams, 'scan_token requires: token');
       }
-      result = await callApi('/api/token-scanner', { token: params.token });
+      result = await callApi('/api/token-scanner', {
+        token: params.token,
+        chain: params.chain,
+      });
       break;
 
     case 'track_whales':
       if (!params.token) {
         throw new McpError(ErrorCode.InvalidParams, 'track_whales requires: token');
       }
-      result = await callApi('/api/whale-tracker', { token: params.token });
+      result = await callApi('/api/whale-tracker', {
+        token: params.token,
+        chain: params.chain,
+      });
       break;
 
     case 'scan_yields':
       result = await callApi('/api/yield-scanner', {
         chain: params.chain,
+        asset: params.asset,
         min_tvl: params.min_tvl,
+        limit: params.limit,
       });
       break;
 
     case 'get_funding_rates':
-      result = await callApi('/api/funding-rates', { asset: params.asset });
+      result = await callApi('/api/funding-rates', {
+        asset: params.asset,
+        min_spread: params.min_spread,
+      });
       break;
 
     case 'profile_wallet':
       if (!params.address) {
         throw new McpError(ErrorCode.InvalidParams, 'profile_wallet requires: address');
       }
-      result = await callApi('/api/wallet-profiler', { address: params.address });
+      result = await callApi('/api/wallet-profiler', {
+        address: params.address,
+        chain: params.chain,
+      });
       break;
 
     default:

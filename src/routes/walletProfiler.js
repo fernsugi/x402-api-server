@@ -75,12 +75,16 @@ function generateMockProfile(address, chainFilter) {
     portfolio_pct: parseFloat((h.value_usd / totalValue * 100).toFixed(2)),
   }));
 
-  // DeFi positions (mock)
-  const defiPositions = [
+  // DeFi positions (mock) — filtered by chainFilter same as holdings
+  const allDefiPositions = [
     { protocol: 'Aave V3', type: 'lending', asset: 'USDC', chain: 'ethereum', value_usd: Math.floor(rng(0, totalValue * 0.15)), apy: 4.2 },
     { protocol: 'Lido', type: 'staking', asset: 'stETH', chain: 'ethereum', value_usd: Math.floor(rng(0, totalValue * 0.2)), apy: 3.8 },
     { protocol: 'Uniswap V3', type: 'liquidity', asset: 'ETH/USDC', chain: 'base', value_usd: Math.floor(rng(0, totalValue * 0.1)), apy: 12.5 },
-  ].filter(p => p.value_usd > 100);
+  ];
+  const defiPositions = (chainFilter === 'all'
+    ? allDefiPositions
+    : allDefiPositions.filter(p => p.chain === chainFilter)
+  ).filter(p => p.value_usd > 100);
 
   const defiValue = defiPositions.reduce((s, p) => s + p.value_usd, 0);
 

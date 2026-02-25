@@ -1,5 +1,5 @@
 /**
- * x402 Payment Verifier — Production-Ready
+ * x402 Payment Verifier — Production-Ready (Hardened)
  *
  * Dual-mode verification:
  *   - development: accepts any non-empty X-PAYMENT header (mock mode)
@@ -16,7 +16,10 @@
  *
  * SECURITY NOTES:
  *   - Nonces are persisted to disk (data/used-nonces.json) to survive restarts.
+ *   - Nonce state machine: pending → settled/failed (prevents double-settlement, allows retries).
  *   - validAfter AND validBefore are both checked.
+ *   - Rate limiting: max 10 payment attempts per source address per minute.
+ *   - Tx-hash validation: format check + confirmation count + recipient match.
  *   - EIP-3009 verification confirms signature validity and nonce freshness,
  *     but DOES NOT submit the transferWithAuthorization to the chain.
  *     See the settlement TODO below for the required production upgrade.
@@ -32,31 +35,53 @@ const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 const BASE_RPC = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
 const FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://x402.org/facilitator';
 
-// ── Persistent nonce store ───────────────────────────────────────────────────
-// Stored in data/used-nonces.json relative to the project root.
-// This survives process restarts, preventing replay attacks across deploys.
+// ── Nonce state machine ──────────────────────────────────────────────────────
+// States:
+//   'pending'  — settlement in progress; block duplicate submissions
+//   'settled'  — confirmed; permanent replay protection
+//   'failed'   — settlement failed; allow client to retry (NOT persisted to disk)
+//
+// On restart, any 'pending' entries loaded from disk are demoted to 'failed'
+// (the settlement was interrupted; client may retry safely).
+
 const DATA_DIR = path.join(__dirname, '../../data');
 const NONCE_FILE = path.join(DATA_DIR, 'used-nonces.json');
 
-/** Load persisted nonces from disk into a Set */
+/** Load persisted nonces from disk into a Map<key, {state, timestamp}> */
 function loadNonces() {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    if (!fs.existsSync(NONCE_FILE)) return new Set();
+    if (!fs.existsSync(NONCE_FILE)) return new Map();
     const raw = fs.readFileSync(NONCE_FILE, 'utf8');
-    const arr = JSON.parse(raw);
-    return new Set(Array.isArray(arr) ? arr : []);
+    const stored = JSON.parse(raw);
+    const m = new Map();
+    if (Array.isArray(stored)) {
+      for (const item of stored) {
+        if (typeof item === 'string') {
+          // Legacy format: plain string = settled
+          m.set(item, { state: 'settled', timestamp: 0 });
+        } else if (Array.isArray(item) && item.length === 2) {
+          const [key, val] = item;
+          // On restart, treat 'pending' as 'failed' (settlement was interrupted)
+          const state = val.state === 'pending' ? 'failed' : val.state;
+          m.set(key, { state, timestamp: val.timestamp || 0 });
+        }
+      }
+    }
+    return m;
   } catch (err) {
     console.warn('[verifier] Could not load nonce store, starting fresh:', err.message);
-    return new Set();
+    return new Map();
   }
 }
 
-/** Flush the nonce set to disk */
+/** Flush pending + settled nonces to disk (failed states are NOT persisted — they allow retry). */
 function saveNonces(nonces) {
   try {
     if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    fs.writeFileSync(NONCE_FILE, JSON.stringify([...nonces]), 'utf8');
+    // Only persist 'pending' and 'settled' — 'failed' allows retry, no need to persist
+    const toSave = [...nonces.entries()].filter(([, v]) => v.state !== 'failed');
+    fs.writeFileSync(NONCE_FILE, JSON.stringify(toSave), 'utf8');
   } catch (err) {
     console.error('[verifier] CRITICAL: Could not persist nonce store:', err.message);
     // Fail open with warning — a restart would clear in-memory anyway.
@@ -64,13 +89,58 @@ function saveNonces(nonces) {
   }
 }
 
-// In-process cache; nonces are also written to disk on every new entry.
+// In-process nonce cache (Map) — also written to disk on every state change.
 const usedNonces = loadNonces();
 
-/** Add a nonce to the store and immediately persist it. */
-function addNonce(key) {
-  usedNonces.add(key);
-  saveNonces(usedNonces);
+/**
+ * Set nonce state and persist if needed.
+ * @param {string} key
+ * @param {'pending'|'settled'|'failed'} state
+ */
+function setNonceState(key, state) {
+  usedNonces.set(key, { state, timestamp: Date.now() });
+  // Only persist pending/settled — failed states can be retried
+  if (state !== 'failed') {
+    saveNonces(usedNonces);
+  }
+}
+
+/**
+ * Get the current state of a nonce.
+ * @param {string} key
+ * @returns {'pending'|'settled'|'failed'|null}
+ */
+function getNonceState(key) {
+  return usedNonces.get(key)?.state ?? null;
+}
+
+// ── Rate Limiting ────────────────────────────────────────────────────────────
+// In-memory: max 10 payment attempts per source address per 60-second window.
+// (Resets on restart; for production use Redis or a persistent store.)
+
+const rateLimitStore = new Map(); // address → { count: number, windowStart: number }
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+
+/**
+ * Check and increment the rate limit for a payer address.
+ * @param {string} address - Normalised (lowercase) payer address.
+ * @returns {boolean} true if allowed, false if limit exceeded.
+ */
+function checkRateLimit(address) {
+  if (!address) return true; // no address, no limit
+  const now = Date.now();
+  const key = address.toLowerCase();
+  const entry = rateLimitStore.get(key);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitStore.set(key, { count: 1, windowStart: now });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) {
+    return false;
+  }
+  entry.count++;
+  return true;
 }
 
 // ── Lazy-init provider ───────────────────────────────────────────────────────
@@ -204,27 +274,59 @@ async function verifyPayment(paymentHeader, config) {
 /**
  * Verify by checking an on-chain transaction hash.
  * Simpler approach: agent already submitted the tx, we just confirm it.
+ *
+ * Hardened:
+ *   - TX hash format validated (0x + 64 hex chars).
+ *   - Minimum 1 block confirmation required.
+ *   - Transfer recipient validated against config.payTo.
+ *   - Rate limiting applied on decoded.payer if present.
  */
 async function verifyByTxHash(decoded, config) {
   const { txHash, payer } = decoded;
-  if (!txHash || !txHash.startsWith('0x') || txHash.length !== 66) {
-    return { valid: false, reason: 'Invalid transaction hash format' };
+
+  // ── Format validation ────────────────────────────────────────────────
+  if (!txHash) {
+    return { valid: false, reason: 'Missing transaction hash' };
+  }
+  if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+    return { valid: false, reason: 'Invalid transaction hash format (expected 0x + 64 hex chars)' };
   }
 
-  // Check replay
-  if (usedNonces.has(txHash)) {
+  // ── Rate limit (best-effort; payer may be missing before on-chain lookup) ──
+  if (payer && !checkRateLimit(payer)) {
+    return { valid: false, reason: `Rate limit exceeded for address ${payer} — max ${RATE_LIMIT_MAX} attempts/minute` };
+  }
+
+  // ── Replay check ────────────────────────────────────────────────────
+  const txState = getNonceState(txHash);
+  if (txState === 'settled') {
     return { valid: false, reason: 'Transaction already used (replay protection)' };
   }
+  if (txState === 'pending') {
+    return { valid: false, reason: 'Transaction verification already in progress (duplicate submission)' };
+  }
+
+  // Mark as pending while we verify on-chain
+  setNonceState(txHash, 'pending');
 
   try {
     const provider = getProvider();
     const receipt = await provider.getTransactionReceipt(txHash);
 
     if (!receipt || receipt.status !== 1) {
+      setNonceState(txHash, 'failed');
       return { valid: false, reason: 'Transaction failed or not found on Base' };
     }
 
-    // Check for USDC Transfer event to our address
+    // ── Confirmation count check (require at least 1 block) ─────────────
+    const currentBlock = await provider.getBlockNumber();
+    const confirmations = currentBlock - receipt.blockNumber;
+    if (confirmations < 1) {
+      setNonceState(txHash, 'failed');
+      return { valid: false, reason: `Transaction not yet confirmed (0 confirmations, needs >= 1)` };
+    }
+
+    // ── Validate Transfer event + recipient ─────────────────────────────
     const iface = new ethers.Interface([
       'event Transfer(address indexed from, address indexed to, uint256 value)',
     ]);
@@ -233,12 +335,15 @@ async function verifyByTxHash(decoded, config) {
       if (log.address.toLowerCase() !== USDC_ADDRESS.toLowerCase()) continue;
       try {
         const parsed = iface.parseLog({ topics: log.topics, data: log.data });
-        if (
-          parsed.name === 'Transfer' &&
-          parsed.args.to.toLowerCase() === config.payTo.toLowerCase() &&
-          parsed.args.value >= BigInt(config.maxAmountRequired)
-        ) {
-          addNonce(txHash); // persist
+        if (parsed.name !== 'Transfer') continue;
+
+        // Validate recipient matches expected payment address
+        if (parsed.args.to.toLowerCase() !== config.payTo.toLowerCase()) {
+          continue; // wrong recipient in this log, check next
+        }
+
+        if (parsed.args.value >= BigInt(config.maxAmountRequired)) {
+          setNonceState(txHash, 'settled');
           return {
             valid: true,
             mock: false,
@@ -247,13 +352,16 @@ async function verifyByTxHash(decoded, config) {
             payer: parsed.args.from,
             amount: parsed.args.value.toString(),
             network: 'base',
+            confirmations,
           };
         }
       } catch { /* not a matching event */ }
     }
 
+    setNonceState(txHash, 'failed');
     return { valid: false, reason: 'No valid USDC transfer to our address found in transaction' };
   } catch (err) {
+    setNonceState(txHash, 'failed');
     console.error('[verifier] RPC error:', err.message);
     return { valid: false, reason: `Verification RPC error: ${err.message}` };
   }
@@ -269,29 +377,47 @@ async function verifyByTxHash(decoded, config) {
  *   4. The nonce has not been used locally (replay protection, persistent).
  *   5. The on-chain nonce state has not been consumed.
  *
+ * Nonce ordering (FIXED):
+ *   Nonce is marked 'pending' BEFORE settlement (prevents double-settlement),
+ *   then promoted to 'settled' on success or 'failed' on failure (allows retry).
+ *
  * What this does NOT do:
  *   - It does NOT submit the transferWithAuthorization to the blockchain.
  *   - Funds do NOT move until the settlement stub is replaced with a real call.
  *   See the submitSettlement TODO above.
  */
 async function verifyEIP3009(signature, auth, config) {
-  // Check replay locally (persistent across restarts)
-  const nonceKey = `${auth.from}:${auth.nonce}`;
-  if (usedNonces.has(nonceKey)) {
-    return { valid: false, reason: 'Nonce already used (replay protection)' };
+  // ── Rate limit ───────────────────────────────────────────────────────
+  if (auth.from && !checkRateLimit(auth.from)) {
+    return {
+      valid: false,
+      reason: `Rate limit exceeded for address ${auth.from} — max ${RATE_LIMIT_MAX} attempts/minute`,
+    };
   }
 
-  // Verify recipient
+  // ── Replay check (nonce state machine) ──────────────────────────────
+  const nonceKey = `${auth.from}:${auth.nonce}`;
+  const nonceState = getNonceState(nonceKey);
+
+  if (nonceState === 'settled') {
+    return { valid: false, reason: 'Nonce already used (replay protection)' };
+  }
+  if (nonceState === 'pending') {
+    return { valid: false, reason: 'Payment already in progress — duplicate submission rejected' };
+  }
+  // nonceState === 'failed' or null → proceed with verification
+
+  // ── Verify recipient ──────────────────────────────────────────────────
   if (auth.to.toLowerCase() !== config.payTo.toLowerCase()) {
     return { valid: false, reason: 'Payment recipient mismatch' };
   }
 
-  // Verify amount
+  // ── Verify amount ────────────────────────────────────────────────────
   if (BigInt(auth.value) < BigInt(config.maxAmountRequired)) {
     return { valid: false, reason: `Insufficient: got ${auth.value}, need ${config.maxAmountRequired}` };
   }
 
-  // Verify timing — BOTH validAfter and validBefore must be satisfied
+  // ── Verify timing — BOTH validAfter and validBefore must be satisfied ──
   const now = Math.floor(Date.now() / 1000);
   if (auth.validAfter && now < Number(auth.validAfter)) {
     return { valid: false, reason: `Authorization not yet valid (validAfter: ${auth.validAfter}, now: ${now})` };
@@ -300,7 +426,7 @@ async function verifyEIP3009(signature, auth, config) {
     return { valid: false, reason: 'Authorization expired (validBefore exceeded)' };
   }
 
-  // Verify EIP-712 signature
+  // ── Verify EIP-712 signature ─────────────────────────────────────────
   const domain = {
     name: 'USD Coin',
     version: '2',
@@ -328,7 +454,7 @@ async function verifyEIP3009(signature, auth, config) {
     return { valid: false, reason: `Signature verification failed: ${err.message}` };
   }
 
-  // Check on-chain nonce state
+  // ── Check on-chain nonce state ────────────────────────────────────────
   try {
     const provider = getProvider();
     const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, provider);
@@ -341,22 +467,22 @@ async function verifyEIP3009(signature, auth, config) {
     // Continue — settlement will catch double-spend
   }
 
-  // Persist nonce before attempting settlement (fail-safe against double-spend)
-  addNonce(nonceKey);
+  // ── Mark nonce as 'pending' BEFORE settlement ─────────────────────────
+  // This prevents double-settlement if two concurrent requests arrive with
+  // the same nonce before either completes.
+  setNonceState(nonceKey, 'pending');
 
-  // Attempt settlement (stub — does not move funds until wired up)
+  // ── Attempt settlement (stub — does not move funds until wired up) ────
   const settlement = await submitSettlement(signature, auth, config);
 
-  // SECURITY: A valid signature alone is NOT sufficient — funds must actually move.
-  // Until the facilitator is wired up, settlement.settled will be false.
-  // Return valid: false so the middleware rejects the request rather than serving
-  // paid content for free.
-  if (!settlement.settled) {
+  // ── Post-settlement nonce state update ────────────────────────────────
+  if (settlement.settled) {
+    // Promote to 'settled' — permanently blocks replay
+    setNonceState(nonceKey, 'settled');
     return {
-      valid: false,
+      valid: true,
       mock: false,
-      settled: false,
-      reason: settlement.reason || 'Payment authorization verified but settlement pending — facilitator not yet configured.',
+      settled: true,
       payer: auth.from,
       amount: auth.value,
       nonce: auth.nonce,
@@ -364,10 +490,18 @@ async function verifyEIP3009(signature, auth, config) {
     };
   }
 
+  // Settlement failed — mark 'failed' so client can retry with same nonce
+  setNonceState(nonceKey, 'failed');
+
+  // SECURITY: A valid signature alone is NOT sufficient — funds must actually move.
+  // Until the facilitator is wired up, settlement.settled will be false.
+  // Return valid: false so the middleware rejects the request rather than serving
+  // paid content for free.
   return {
-    valid: true,
+    valid: false,
     mock: false,
-    settled: true,
+    settled: false,
+    reason: settlement.reason || 'Payment authorization verified but settlement pending — facilitator not yet configured.',
     payer: auth.from,
     amount: auth.value,
     nonce: auth.nonce,
