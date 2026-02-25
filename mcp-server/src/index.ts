@@ -140,11 +140,15 @@ async function callApi(
   }
 
   if (response.status === 402) {
+    // Clone before reading so we can fall back to text() if JSON parsing fails.
+    // Without the clone, calling response.json() consumes the body; a subsequent
+    // response.text() call then throws "body already used".
+    const cloned = response.clone();
     let paymentDetails: unknown;
     try {
       paymentDetails = await response.json();
     } catch {
-      paymentDetails = await response.text();
+      paymentDetails = await cloned.text();
     }
     return { status: 402, data: null, paymentRequired: true, paymentDetails };
   }

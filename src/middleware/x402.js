@@ -94,6 +94,17 @@ function requirePayment(config) {
         });
       }
 
+      // Defense-in-depth: even if verifier returns valid, refuse unsettled payments.
+      // This guards against future code paths where valid:true could slip through
+      // without settlement (e.g. dev mock mode reaching this middleware in prod).
+      if (!result.settled && !result.mock) {
+        return res.status(402).json({
+          x402Version: 1,
+          error: 'Payment authorization verified but settlement pending — facilitator not yet configured.',
+          reason: result.settlementNote || 'Funds have not moved. Wire up the facilitator before go-live.',
+        });
+      }
+
       // Attach to request for downstream handlers
       req.x402 = {
         verified: true,

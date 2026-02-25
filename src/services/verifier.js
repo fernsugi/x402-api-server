@@ -347,11 +347,27 @@ async function verifyEIP3009(signature, auth, config) {
   // Attempt settlement (stub — does not move funds until wired up)
   const settlement = await submitSettlement(signature, auth, config);
 
+  // SECURITY: A valid signature alone is NOT sufficient — funds must actually move.
+  // Until the facilitator is wired up, settlement.settled will be false.
+  // Return valid: false so the middleware rejects the request rather than serving
+  // paid content for free.
+  if (!settlement.settled) {
+    return {
+      valid: false,
+      mock: false,
+      settled: false,
+      reason: settlement.reason || 'Payment authorization verified but settlement pending — facilitator not yet configured.',
+      payer: auth.from,
+      amount: auth.value,
+      nonce: auth.nonce,
+      network: 'base',
+    };
+  }
+
   return {
     valid: true,
     mock: false,
-    settled: settlement.settled,
-    settlementNote: settlement.reason || null,
+    settled: true,
     payer: auth.from,
     amount: auth.value,
     nonce: auth.nonce,

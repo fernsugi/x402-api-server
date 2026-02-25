@@ -42,6 +42,11 @@ const app = express();
 const PORT = process.env.PORT || 4020;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 
+// Trust the reverse proxy (Fly.io, nginx, etc.) so req.protocol reflects
+// the original https:// scheme rather than the internal http:// hop.
+// Required for correct x402 payment instruction URLs behind Fly.io.
+app.set('trust proxy', true);
+
 // ── Middleware ───────────────────────────────────────────────────────────────
 app.use(cors({
   origin: '*',

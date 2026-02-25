@@ -84,59 +84,141 @@ const BAZAAR_SCHEMAS = {
   '/api/whale-tracker': declareDiscoveryExtension({
     input: {
       token: { type: 'string', description: 'Token symbol (ETH, BTC, SOL, etc.)', default: 'ETH' },
-      chain: { type: 'string', description: 'Chain: ethereum, base, solana, etc.', default: 'ethereum' },
+      chain: { type: 'string', description: 'Chain: ethereum, base, solana, arbitrum, optimism', default: 'ethereum' },
     },
     output: {
       example: {
-        token: 'ETH',
-        chain: 'ethereum',
         timestamp: '2025-01-01T00:00:00.000Z',
-        holder_stats: {
-          total_holders: 95000000,
-          top10_pct: 28.4,
-          top100_pct: 42.1,
-          gini_coefficient: 0.71,
-          concentration_risk: 'moderate',
+        source: 'mock',
+        mock_warning: 'Data is procedurally generated for demo purposes.',
+        query: { token: 'ETH', chain: 'ethereum' },
+        data: {
+          token: 'ETH',
+          chain: 'ethereum',
+          total_supply: 120000000,
+          circulating_supply: 95000000,
+          holder_count: 95000000,
+          concentration_metrics: {
+            top_1_pct: 12.5,
+            top_10_pct: 28.4,
+            top_20_pct: 42.1,
+            gini_coefficient: 0.71,
+            herfindahl_index: 0.023456,
+          },
+          distribution_buckets: [
+            { label: 'Minnows (<$100)', holder_pct: 55.2, supply_pct: 2.1 },
+            { label: 'Fish ($100–$1K)', holder_pct: 24.8, supply_pct: 4.7 },
+            { label: 'Dolphins ($1K–$10K)', holder_pct: 12.1, supply_pct: 8.3 },
+            { label: 'Sharks ($10K–$100K)', holder_pct: 5.4, supply_pct: 13.2 },
+            { label: 'Whales ($100K–$1M)', holder_pct: 2.1, supply_pct: 22.4 },
+            { label: 'Mega-Whales (>$1M)', holder_pct: 0.4, supply_pct: 49.3 },
+          ],
+          top_holders: [
+            {
+              rank: 1,
+              address: '0xabc...',
+              label: 'Binance Hot Wallet',
+              wallet_type: 'exchange',
+              balance: 10000000,
+              percentage: 8.4,
+              last_active: '2025-01-01T00:00:00.000Z',
+              is_contract: true,
+            },
+          ],
+          recent_large_transfers: [
+            {
+              tx_hash: '0xdef...',
+              from: '0xabc...',
+              to: '0x123...',
+              amount: 5000,
+              usd_value: 13750000,
+              timestamp: '2025-01-01T00:00:00.000Z',
+              transfer_type: 'exchange_outflow',
+            },
+          ],
         },
-        whale_tiers: [
-          { tier: 'mega_whale', min_balance: 10000, holder_count: 142, pct_supply: 8.2 },
-          { tier: 'whale', min_balance: 1000, holder_count: 1840, pct_supply: 12.6 },
-          { tier: 'dolphin', min_balance: 100, holder_count: 24000, pct_supply: 18.1 },
-        ],
-        recent_large_transfers: [
-          { amount: 5000, usd_value: 13750000, from: '0xabc...', to: '0xdef...', timestamp: '2025-01-01T00:00:00Z', type: 'exchange_withdrawal' },
-        ],
       },
       schema: {
         type: 'object',
         properties: {
-          token: { type: 'string' },
-          chain: { type: 'string' },
-          timestamp: { type: 'string' },
-          holder_stats: {
+          timestamp: { type: 'string', description: 'ISO 8601 response timestamp' },
+          source: { type: 'string', description: '"mock" until real API is wired up' },
+          mock_warning: { type: 'string' },
+          query: {
             type: 'object',
             properties: {
-              total_holders: { type: 'number' },
-              top10_pct: { type: 'number', description: 'Percent of supply held by top 10 wallets' },
-              top100_pct: { type: 'number' },
-              gini_coefficient: { type: 'number', description: '0=perfectly equal, 1=maximum concentration' },
-              concentration_risk: { type: 'string', enum: ['low', 'moderate', 'high', 'critical'] },
+              token: { type: 'string' },
+              chain: { type: 'string' },
             },
           },
-          whale_tiers: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                tier: { type: 'string' },
-                min_balance: { type: 'number' },
-                holder_count: { type: 'number' },
-                pct_supply: { type: 'number' },
+          data: {
+            type: 'object',
+            properties: {
+              token: { type: 'string' },
+              chain: { type: 'string' },
+              total_supply: { type: 'number', description: 'Total token supply' },
+              circulating_supply: { type: 'number' },
+              holder_count: { type: 'number', description: 'Estimated total number of holders' },
+              concentration_metrics: {
+                type: 'object',
+                properties: {
+                  top_1_pct: { type: 'number', description: 'Percent of supply held by top 1 wallet' },
+                  top_10_pct: { type: 'number', description: 'Percent of supply held by top 10 wallets' },
+                  top_20_pct: { type: 'number', description: 'Percent of supply held by top 20 wallets' },
+                  gini_coefficient: { type: 'number', description: '0=perfectly equal, 1=maximum concentration' },
+                  herfindahl_index: { type: 'number', description: 'HHI concentration score (lower is more distributed)' },
+                },
+              },
+              distribution_buckets: {
+                type: 'array',
+                description: 'Holder distribution by USD value tier',
+                items: {
+                  type: 'object',
+                  properties: {
+                    label: { type: 'string', description: 'Tier label e.g. "Whales ($100K–$1M)"' },
+                    holder_pct: { type: 'number', description: 'Percent of all holders in this tier' },
+                    supply_pct: { type: 'number', description: 'Percent of supply held by this tier' },
+                  },
+                },
+              },
+              top_holders: {
+                type: 'array',
+                description: 'Top 20 holders by balance',
+                items: {
+                  type: 'object',
+                  properties: {
+                    rank: { type: 'number' },
+                    address: { type: 'string' },
+                    label: { type: 'string', description: 'Known label (e.g. exchange name) or unlabeled' },
+                    wallet_type: { type: 'string', description: 'exchange, protocol, whale, foundation, team, dao' },
+                    balance: { type: 'number', description: 'Raw token balance' },
+                    percentage: { type: 'number', description: 'Percent of total supply' },
+                    last_active: { type: 'string', description: 'ISO 8601 timestamp of last on-chain activity' },
+                    is_contract: { type: 'boolean' },
+                  },
+                },
+              },
+              recent_large_transfers: {
+                type: 'array',
+                description: 'Recent large transfers involving top holders',
+                items: {
+                  type: 'object',
+                  properties: {
+                    tx_hash: { type: 'string' },
+                    from: { type: 'string' },
+                    to: { type: 'string' },
+                    amount: { type: 'number', description: 'Token amount transferred' },
+                    usd_value: { type: 'number', description: 'Estimated USD value at time of transfer' },
+                    timestamp: { type: 'string' },
+                    transfer_type: { type: 'string', description: 'exchange_outflow, accumulation, etc.' },
+                  },
+                },
               },
             },
+            required: ['token', 'chain', 'concentration_metrics', 'distribution_buckets', 'top_holders'],
           },
-          recent_large_transfers: { type: 'array' },
         },
+        required: ['timestamp', 'query', 'data'],
       },
     },
   }),
