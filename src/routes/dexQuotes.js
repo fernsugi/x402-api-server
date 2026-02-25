@@ -112,7 +112,6 @@ router.get(
   (req, res) => {
     const from = (req.query.from || 'ETH').toString().trim().toUpperCase().slice(0, 10);
     const to = (req.query.to || 'USDC').toString().trim().toUpperCase().slice(0, 10);
-    const amount = parseFloat(req.query.amount || '1') || 1;
     const chain = (req.query.chain || 'ethereum').toString().trim().toLowerCase();
 
     const validChains = ['ethereum', 'base', 'arbitrum', 'polygon'];
@@ -123,6 +122,16 @@ router.get(
     if (from === to) {
       return res.status(400).json({ error: 'from and to tokens must be different' });
     }
+
+    // Validate amount: must be a finite, positive number
+    const rawAmount = parseFloat(req.query.amount || '1');
+    if (!isFinite(rawAmount) || rawAmount <= 0) {
+      return res.status(400).json({
+        error: 'Invalid amount',
+        hint: 'amount must be a finite positive number greater than 0 (e.g. 1, 0.5, 100)',
+      });
+    }
+    const amount = rawAmount;
 
     const data = generateQuotes(from, to, amount, chain);
 

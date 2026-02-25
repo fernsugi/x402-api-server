@@ -60,14 +60,32 @@ router.get(
   }),
   (req, res) => {
     const chainFilter = (req.query.chain || 'all').toString().trim().toLowerCase();
-    const minTvl = parseFloat(req.query.min_tvl || '0') || 0;
     const assetFilter = req.query.asset?.toString().trim().toUpperCase();
-    const limit = Math.min(parseInt(req.query.limit || '20') || 20, 50);
 
     const validChains = ['ethereum', 'base', 'arbitrum', 'polygon', 'all'];
     if (!validChains.includes(chainFilter)) {
       return res.status(400).json({ error: 'Invalid chain', valid_chains: validChains });
     }
+
+    // Validate min_tvl: must be a finite, non-negative number
+    const rawMinTvl = parseFloat(req.query.min_tvl || '0');
+    if (!isFinite(rawMinTvl) || rawMinTvl < 0) {
+      return res.status(400).json({
+        error: 'Invalid min_tvl',
+        hint: 'min_tvl must be a non-negative finite number (e.g. 0, 1000000)',
+      });
+    }
+    const minTvl = rawMinTvl;
+
+    // Validate limit: must be a finite positive integer between 1 and 50
+    const rawLimit = parseInt(req.query.limit || '20');
+    if (!isFinite(rawLimit) || rawLimit < 1) {
+      return res.status(400).json({
+        error: 'Invalid limit',
+        hint: 'limit must be a positive integer >= 1 (max 50)',
+      });
+    }
+    const limit = Math.min(rawLimit, 50);
 
     // Add slight time-based variation to APYs
     const now = Date.now();

@@ -145,7 +145,16 @@ router.get(
   }),
   (req, res) => {
     const assetFilter = req.query.asset?.toString().toUpperCase().trim();
-    const minSpreadBps = parseFloat(req.query.min_spread || '0');
+
+    // Validate min_spread: must be a finite, non-negative number
+    const rawMinSpread = parseFloat(req.query.min_spread || '0');
+    if (!isFinite(rawMinSpread) || rawMinSpread < 0) {
+      return res.status(400).json({
+        error: 'Invalid min_spread',
+        hint: 'min_spread must be a non-negative finite number (e.g. 0, 0.5, 2)',
+      });
+    }
+    const minSpreadBps = rawMinSpread;
 
     const now = Date.now();
     // ⚠️  MOCK DATA
