@@ -163,6 +163,12 @@ async function callApi(
 
   if (!response.ok) {
     const errorText = await response.text();
+    if (response.status === 400 || response.status === 422) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid request to ${endpoint}: ${errorText}`
+      );
+    }
     throw new McpError(
       ErrorCode.InternalError,
       `API error ${response.status} from ${endpoint}: ${errorText}`
@@ -367,8 +373,9 @@ const TOOLS = [
   {
     name: 'get_funding_rates',
     description:
-      'Get perpetual futures funding rates across 6 venues (Binance, OKX, Bybit, dYdX, GMX, Hyperliquid). ' +
-      'Returns current rates, 7d average, annualized rate, and arbitrage opportunity ranking. ' +
+      'Get perpetual futures funding rates across 6 venues: Hyperliquid, dYdX v4, Aevo, GMX, Drift, and Vertex. ' +
+      'Returns per-8h funding rate, annualized APR, predicted rate, open interest, and next funding time for each venue. ' +
+      'Also returns ranked arbitrage opportunities (long low-rate venue, short high-rate venue) with spread in bps and annualized carry. ' +
       'Costs 0.008 USDC per call (x402 micropayment on Base).',
     inputSchema: {
       type: 'object',

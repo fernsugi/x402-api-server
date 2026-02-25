@@ -90,18 +90,15 @@ function evictStaleNonces(nonces) {
 
 /** Flush pending + settled nonces to disk (failed states are NOT persisted — they allow retry). */
 function saveNonces(nonces) {
-  try {
-    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-    // Evict stale transient entries before persisting to prevent unbounded growth
-    evictStaleNonces(nonces);
-    // Only persist 'pending' and 'settled' — 'failed' allows retry, no need to persist
-    const toSave = [...nonces.entries()].filter(([, v]) => v.state !== 'failed');
-    fs.writeFileSync(NONCE_FILE, JSON.stringify(toSave), 'utf8');
-  } catch (err) {
-    console.error('[verifier] CRITICAL: Could not persist nonce store:', err.message);
-    // Fail open with warning — a restart would clear in-memory anyway.
-    // TODO: throw here in strict-mode deployments to halt on nonce persistence failure.
-  }
+  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+  // Evict stale transient entries before persisting to prevent unbounded growth
+  evictStaleNonces(nonces);
+  // Only persist 'pending' and 'settled' — 'failed' allows retry, no need to persist
+  const toSave = [...nonces.entries()].filter(([, v]) => v.state !== 'failed');
+  // Atomic write: write to temp file then rename to prevent partial-write corruption
+  const tempPath = NONCE_FILE + '.tmp';
+  fs.writeFileSync(tempPath, JSON.stringify(toSave), 'utf8');
+  fs.renameSync(tempPath, NONCE_FILE);
 }
 
 // In-process nonce cache (Map) — also written to disk on every state change.
@@ -307,18 +304,16 @@ async function verifyByTxHash(decoded, config) {
     return { valid: false, reason: 'Invalid transaction hash format (expected 0x + 64 hex chars)' };
   }
 
-  // ── Rate limit — apply by payer address when available, otherwise by txHash prefix ──
-  // This prevents spam even when the caller omits a payer field.
-  if (payer) {
-    if (!checkRateLimit(payer)) {
-      return { valid: false, reason: `Rate limit exceeded for address ${payer} — max ${RATE_LIMIT_MAX} attempts/minute` };
-    }
-  } else {
-    // Use first 10 hex chars of txHash as a coarse dedup key for unsigned submissions
-    const hashKey = `txhash:${txHash.slice(0, 12)}`;
-    if (!checkRateLimit(hashKey)) {
-      return { valid: false, reason: `Rate limit exceeded for this transaction hash — max ${RATE_LIMIT_MAX} attempts/minute` };
-    }
+  // ── Payer is REQUIRED — prevents frontrunning ────────────────────────
+  // Without a payer, anyone who sees the tx hash (e.g. via mempool/explorer)
+  // could replay it to claim the payment for their own request.
+  if (!payer || !/^0x[0-9a-fA-F]{40}$/.test(payer)) {
+    return { valid: false, reason: 'Missing or invalid payer address (required for tx-hash verification)' };
+  }
+
+  // ── Rate limit by payer address ──────────────────────────────────────
+  if (!checkRateLimit(payer)) {
+    return { valid: false, reason: `Rate limit exceeded for address ${payer} — max ${RATE_LIMIT_MAX} attempts/minute` };
   }
 
   // ── Replay check ────────────────────────────────────────────────────
@@ -366,6 +361,14 @@ async function verifyByTxHash(decoded, config) {
           continue; // wrong recipient in this log, check next
         }
 
+        // ── Validate payer matches on-chain sender (prevents frontrunning) ──
+        // Only the actual sender of the tx can claim the payment.
+        const onChainSender = parsed.args.from;
+        if (decoded.payer.toLowerCase() !== onChainSender.toLowerCase()) {
+          setNonceState(txHash, 'failed');
+          return { valid: false, reason: 'Payer address does not match on-chain transfer sender' };
+        }
+
         if (parsed.args.value >= BigInt(config.maxAmountRequired)) {
           setNonceState(txHash, 'settled');
           return {
@@ -373,7 +376,7 @@ async function verifyByTxHash(decoded, config) {
             mock: false,
             settled: true, // tx was already on-chain
             txHash,
-            payer: parsed.args.from,
+            payer: onChainSender,
             amount: parsed.args.value.toString(),
             network: 'base',
             confirmations,
