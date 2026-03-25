@@ -123,12 +123,11 @@ Content-Type: application/json
 
 ### Payment Verification
 
-In production mode, the server verifies payments via:
+In the current repo, the production-ready payment proof path is:
 
-1. **EIP-3009 signature** — Validates the `transferWithAuthorization` EIP-712 signature, checks amount, recipient, expiry, and on-chain nonce.
-2. **Transaction hash** — Confirms a submitted Base transaction contains a USDC transfer to the receiving address.
+1. **Transaction hash** — Confirms a submitted Base transaction contains a USDC transfer to the receiving address.
 
-Both methods include replay protection.
+The repo also contains a partial **EIP-3009 `transferWithAuthorization`** verifier, but settlement for that path is not fully wired through in this codebase yet. If you are integrating today, use the `txHash` payment proof path unless you have extended the settlement flow yourself.
 
 **Receiving wallet:** `0x60264c480b67adb557efEd22Cf0e7ceA792DefB7`  
 **Network:** Base mainnet (chain ID 8453)  
@@ -177,6 +176,12 @@ console.log(data);
 3. Signs the payment authorization (EIP-3009 `transferWithAuthorization`)
 4. Retries the request with `X-Payment` header
 5. Returns the successful response
+
+Note: this is the standard x402 client flow. The current server repo also supports a simpler proof format where a client pays on-chain first, then sends a Base64 JSON `X-Payment` header like:
+
+```json
+{ "txHash": "0x...", "payer": "0x..." }
+```
 
 **Your wallet needs USDC on Base mainnet.** You can bridge USDC from Ethereum to Base using the [Base Bridge](https://bridge.base.org) or buy directly on Coinbase.
 

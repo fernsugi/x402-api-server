@@ -255,7 +255,11 @@ GET /.well-known/agent-registration.json  ERC-8004 registration file
 Network: Base (chain ID 8453)
 Asset: USDC (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)
 Pay-to: ${PAY_TO_ADDRESS}
-Protocol: x402 (EIP-3009 transferWithAuthorization)
+Protocol: x402 (402 payment instructions + Base64 payment proof in X-Payment)
+
+## Current Payment Proofs
+- Production-ready in this repo: on-chain Base USDC transfer proved with X-Payment = Base64 JSON containing txHash + payer
+- Partial / not fully wired end-to-end in this repo: EIP-3009 transferWithAuthorization settlement flow
 
 ## Integration
 npm: x402-fetch (auto-handles 402 payment flow)

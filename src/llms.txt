@@ -44,9 +44,13 @@ Wallet portfolio: holdings, DeFi positions, activity metrics, risk classificatio
 
 ## Payment Flow
 1. Agent calls endpoint without payment → receives 402 with payment instructions
-2. Agent signs EIP-3009 transferWithAuthorization (USDC on Base)
-3. Agent retries with X-Payment header containing base64-encoded proof
-4. Server verifies via x402.org facilitator → returns data
+2. Agent pays on Base and retries with X-Payment header containing Base64 JSON proof
+3. Current production-ready proof format in this repo: {"txHash":"0x...","payer":"0x..."}
+4. Server verifies the on-chain USDC transfer and returns data
+
+## Notes
+- The repo also contains a partial EIP-3009 transferWithAuthorization verifier
+- Signature-based settlement is not fully wired through in this codebase yet
 
 ## Integrations
 - MCP Server: @x402-api/mcp-server
