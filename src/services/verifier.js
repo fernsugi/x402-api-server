@@ -414,6 +414,7 @@ async function verifyByTxHash(decoded, config) {
  *   See the submitSettlement TODO above.
  */
 async function verifyEIP3009(signature, auth, config) {
+  let nonceKey = null;
   try {
   // ── Required-field validation ────────────────────────────────────────
   // Malformed payloads must return 402 (invalid), not crash with 500.
@@ -433,7 +434,7 @@ async function verifyEIP3009(signature, auth, config) {
   }
 
   // ── Replay check (nonce state machine) ──────────────────────────────
-  const nonceKey = `${auth.from}:${auth.nonce}`;
+  nonceKey = `${auth.from}:${auth.nonce}`;
   const nonceState = getNonceState(nonceKey);
 
   if (nonceState === 'settled') {

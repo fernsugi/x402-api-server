@@ -19,9 +19,7 @@
   "author": "Sugi",
   "license": "MIT",
   "dependencies": {
-    "@x402/evm": "^2.4.0",
-    "@x402/express": "^2.4.0",
-    "@x402/extensions": "^2.4.0",
+    "@x402/extensions": "^2.8.0",
     "axios": "^1.7.9",
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",

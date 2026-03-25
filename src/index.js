@@ -35,7 +35,11 @@ const tokenScannerRouter = require('./routes/tokenScanner');
 const dexQuotesRouter = require('./routes/dexQuotes');
 const yieldScannerRouter = require('./routes/yieldScanner');
 const walletProfilerRouter = require('./routes/walletProfiler');
-const { PAY_TO_ADDRESS } = require('./middleware/x402');
+const {
+  PAY_TO_ADDRESS,
+  SUPPORTED_PAYMENT_PROOFS,
+  EXPERIMENTAL_PAYMENT_PROOFS,
+} = require('./middleware/x402');
 const { BAZAAR_SCHEMAS } = require('./bazaar-schemas');
 
 const app = express();
@@ -100,6 +104,8 @@ app.get('/api/endpoints', (req, res) => {
     network: 'base',
     asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
     asset_name: 'USDC',
+    payment_proofs_supported: SUPPORTED_PAYMENT_PROOFS,
+    payment_proofs_experimental: EXPERIMENTAL_PAYMENT_PROOFS,
     endpoints: [
       {
         path: '/api/price-feed',
@@ -203,13 +209,14 @@ app.get('/api/bazaar', (req, res) => {
     network: 'eip155:8453',
     asset: '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
     asset_symbol: 'USDC',
-    facilitator: 'https://x402.org/facilitator',
+    payment_proofs_supported: SUPPORTED_PAYMENT_PROOFS,
+    payment_proofs_experimental: EXPERIMENTAL_PAYMENT_PROOFS,
     resources: Object.entries(BAZAAR_SCHEMAS).map(([path, schema]) => ({
       path,
       method: 'GET',
       schema,
     })),
-    _note: 'extensions.bazaar schema included in every 402 Payment Required response',
+    _note: 'extensions.bazaar schema is included in 402 responses. Current production-ready proof path in this repo is txHash-based.',
   });
 });
 

@@ -99,7 +99,8 @@ Content-Type: application/json
     "extra": {
       "name": "USD Coin",
       "chainId": 8453,
-      "facilitatorUrl": "https://x402.org/facilitator"
+      "supportedProofs": ["txHash"],
+      "experimentalProofs": ["eip3009_transferWithAuthorization"]
     }
   }]
 }
@@ -314,7 +315,7 @@ src/
 │   ├── fundingRates.js      # /api/funding-rates
 │   └── walletProfiler.js    # /api/wallet-profiler
 ├── services/
-│   └── verifier.js          # EIP-3009 + tx hash payment verifier
+│   └── verifier.js          # txHash-first verifier + partial EIP-3009 path
 └── views/
     └── index.html           # Landing page
 

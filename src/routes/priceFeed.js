@@ -101,11 +101,13 @@ router.get(
         .map(id => formatCoin(id, raw[id]))
         .filter(c => c && c.change_24h_pct !== null);
 
-      const topGainers = [...moversRaw]
+      const topGainers = moversRaw
+        .filter(c => c.change_24h_pct > 0)
         .sort((a, b) => b.change_24h_pct - a.change_24h_pct)
         .slice(0, 5);
 
-      const topLosers = [...moversRaw]
+      const topLosers = moversRaw
+        .filter(c => c.change_24h_pct < 0)
         .sort((a, b) => a.change_24h_pct - b.change_24h_pct)
         .slice(0, 5);
 

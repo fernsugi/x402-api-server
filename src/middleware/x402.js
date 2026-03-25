@@ -16,7 +16,9 @@ const { verifyPayment } = require('../services/verifier');
 const { BAZAAR_SCHEMAS } = require('../bazaar-schemas');
 
 const PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || '0x60264c480b67adb557efEd22Cf0e7ceA792DefB7';
-const FACILITATOR_URL = 'https://x402.org/facilitator';
+const FACILITATOR_URL = process.env.X402_FACILITATOR_URL || null;
+const SUPPORTED_PAYMENT_PROOFS = Object.freeze(['txHash']);
+const EXPERIMENTAL_PAYMENT_PROOFS = Object.freeze(['eip3009_transferWithAuthorization']);
 
 /**
  * Factory: Express middleware enforcing x402 payment.
@@ -67,7 +69,9 @@ function requirePayment(config) {
               name: 'USD Coin',
               version: '2',
               chainId: 8453,
-              facilitatorUrl: FACILITATOR_URL,
+              supportedProofs: SUPPORTED_PAYMENT_PROOFS,
+              experimentalProofs: EXPERIMENTAL_PAYMENT_PROOFS,
+              ...(FACILITATOR_URL ? { facilitatorUrl: FACILITATOR_URL } : {}),
             },
           },
         ],
@@ -132,4 +136,9 @@ function requirePayment(config) {
   };
 }
 
-module.exports = { requirePayment, PAY_TO_ADDRESS };
+module.exports = {
+  requirePayment,
+  PAY_TO_ADDRESS,
+  SUPPORTED_PAYMENT_PROOFS,
+  EXPERIMENTAL_PAYMENT_PROOFS,
+};
