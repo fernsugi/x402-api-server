@@ -1,10 +1,11 @@
 {
   "name": "x402-api-server",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "x402 protocol demo API server — pay-per-call crypto/DeFi data endpoints using HTTP 402 + USDC on Base",
   "main": "src/index.js",
   "files": [
     "src",
+    "scripts",
     "data",
     "README.md",
     ".env.example",

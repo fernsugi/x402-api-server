@@ -26,6 +26,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
+const { version: APP_VERSION } = require('../package.json');
 
 const priceFeedRouter = require('./routes/priceFeed');
 const whaleTrackerRouter = require('./routes/whaleTracker');
@@ -91,7 +92,7 @@ app.use('/api/wallet-profiler', walletProfilerRouter);
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
-    version: '1.0.0',
+    version: APP_VERSION,
     protocol: 'x402',
     environment: NODE_ENV,
     timestamp: new Date().toISOString(),
