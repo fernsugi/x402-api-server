@@ -50,7 +50,10 @@ const BASE_RPC = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
 // On restart, any 'pending' entries loaded from disk are demoted to 'failed'
 // (the settlement was interrupted; client may retry safely).
 
-const DATA_DIR = path.join(__dirname, '../../data');
+const DATA_DIR = process.env.X402_DATA_DIR ||
+  (process.env.NODE_ENV === 'production'
+    ? '/tmp/x402-api-data'
+    : path.join(__dirname, '../../data'));
 const NONCE_FILE = path.join(DATA_DIR, 'used-nonces.json');
 
 /** Load persisted nonces from disk into a Map<key, {state, timestamp}> */
