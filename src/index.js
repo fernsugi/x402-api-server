@@ -40,11 +40,16 @@ const {
   SUPPORTED_PAYMENT_PROOFS,
   EXPERIMENTAL_PAYMENT_PROOFS,
 } = require('./middleware/x402');
+const { getSettlementMode, isEip3009SettlementConfigured } = require('./payment-config');
 const { BAZAAR_SCHEMAS } = require('./bazaar-schemas');
 
 const app = express();
 const PORT = process.env.PORT || 4020;
 const NODE_ENV = process.env.NODE_ENV || 'development';
+const EIP3009_SETTLEMENT_MODE = getSettlementMode();
+const EIP3009_STATUS_LINE = isEip3009SettlementConfigured()
+  ? `- EIP-3009 transferWithAuthorization: enabled in this deployment via ${EIP3009_SETTLEMENT_MODE} settlement`
+  : '- EIP-3009 transferWithAuthorization: disabled in this deployment until settlement credentials are configured';
 
 // Trust the reverse proxy (Fly.io, nginx, etc.) so req.protocol reflects
 // the original https:// scheme rather than the internal http:// hop.
@@ -266,7 +271,7 @@ Protocol: x402 (402 payment instructions + Base64 payment proof in X-Payment)
 
 ## Current Payment Proofs
 - Production-ready in this repo: on-chain Base USDC transfer proved with X-Payment = Base64 JSON containing txHash + payer
-- Partial / not fully wired end-to-end in this repo: EIP-3009 transferWithAuthorization settlement flow
+${EIP3009_STATUS_LINE}
 
 ## Integration
 npm: x402-fetch (auto-handles 402 payment flow)

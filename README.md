@@ -128,7 +128,12 @@ In the current repo, the production-ready payment proof path is:
 
 1. **Transaction hash** — Confirms a submitted Base transaction contains a USDC transfer to the receiving address.
 
-The repo also contains a partial **EIP-3009 `transferWithAuthorization`** verifier, but settlement for that path is not fully wired through in this codebase yet. If you are integrating today, use the `txHash` payment proof path unless you have extended the settlement flow yourself.
+The repo also supports **EIP-3009 `transferWithAuthorization`** settlement when you configure one of these:
+
+1. **Direct settlement** via `X402_SETTLEMENT_PRIVATE_KEY` — the server submits `transferWithAuthorization` on-chain and pays gas.
+2. **Custom facilitator settlement** via `X402_FACILITATOR_URL` — the server forwards the signed authorization to your facilitator.
+
+Without either of those configured, the deployment stays on the `txHash` payment proof path only.
 
 **Receiving wallet:** `0x60264c480b67adb557efEd22Cf0e7ceA792DefB7`  
 **Network:** Base mainnet (chain ID 8453)  
@@ -303,6 +308,7 @@ curl http://localhost:4020/api/price-feed -H "X-Payment: test"
 ```
 src/
 ├── index.js                 # Express server + graceful shutdown
+├── payment-config.js        # Settlement mode + proof support detection
 ├── middleware/
 │   └── x402.js              # x402 payment gate middleware
 ├── routes/
@@ -315,7 +321,7 @@ src/
 │   ├── fundingRates.js      # /api/funding-rates
 │   └── walletProfiler.js    # /api/wallet-profiler
 ├── services/
-│   └── verifier.js          # txHash-first verifier + partial EIP-3009 path
+│   └── verifier.js          # txHash verifier + EIP-3009 settlement
 └── views/
     └── index.html           # Landing page
 
@@ -351,6 +357,10 @@ docker compose up -d
 | `PORT` | `4020` | Server port |
 | `NODE_ENV` | `development` | Set `production` for real payment verification |
 | `BASE_RPC_URL` | `https://mainnet.base.org` | Base RPC URL |
+| `X402_SETTLEMENT_MODE` | `auto` | `auto`, `direct`, `facilitator`, or `disabled` |
+| `X402_SETTLEMENT_PRIVATE_KEY` | none | Sponsor key for direct `transferWithAuthorization` settlement |
+| `X402_FACILITATOR_URL` | none | Custom facilitator URL for EIP-3009 settlement |
+| `X402_FACILITATOR_API_KEY` | none | Optional bearer token for your facilitator |
 
 ---
 

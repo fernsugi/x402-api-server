@@ -734,7 +734,7 @@
         <div class="value purple" id="server-url">https://x402-api.fly.dev</div>
         <div class="sub">
           8 pay-gated endpoints · x402 protocol<br>
-          Verifier: <a href="https://x402.org/facilitator" target="_blank" rel="noopener">x402.org/facilitator ↗</a>
+          Verifier: txHash proof + configurable EIP-3009 settlement
         </div>
       </div>
     </div>
@@ -761,7 +761,7 @@
       <div class="flow-step">
         <div class="step-num">03</div>
         <div class="step-title">Sign &amp; Pay</div>
-        <div class="step-desc">Agent signs EIP-3009 transferWithAuthorization on Base</div>
+        <div class="step-desc">Agent pays on-chain or signs EIP-3009 transferWithAuthorization</div>
       </div>
       <div class="flow-arrow">→</div>
       <div class="flow-step">
@@ -773,7 +773,7 @@
       <div class="flow-step">
         <div class="step-num">05</div>
         <div class="step-title">Verify + Serve</div>
-        <div class="step-desc">Server verifies via x402.org facilitator → 200 OK + data</div>
+        <div class="step-desc">Server verifies and settles payment → 200 OK + data</div>
       </div>
     </div>
   </section>
@@ -1019,7 +1019,7 @@ curl -s https://x402-api.fly.dev/api/price-feed | jq .
   }]
 }
 
-<span class="cmt"># Step 2: Sign EIP-3009 transferWithAuthorization on Base
+<span class="cmt"># Step 2: Pay on-chain or sign EIP-3009 transferWithAuthorization
 # (use x402-fetch or Coinbase SDK — do not do this by hand in prod)</span>
 
 <span class="cmt"># Step 3: Retry with X-Payment header (base64 JSON payload)</span>

@@ -27,13 +27,19 @@
 
 'use strict';
 
+const axios = require('axios');
 const { ethers } = require('ethers');
 const fs = require('fs');
 const path = require('path');
+const {
+  FACILITATOR_URL,
+  FACILITATOR_API_KEY,
+  SETTLEMENT_PRIVATE_KEY,
+  getSettlementMode,
+} = require('../payment-config');
 
 const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 const BASE_RPC = process.env.BASE_RPC_URL || 'https://mainnet.base.org';
-const FACILITATOR_URL = process.env.X402_FACILITATOR_URL || 'https://x402.org/facilitator';
 
 // ── Nonce state machine ──────────────────────────────────────────────────────
 // States:
@@ -164,62 +170,154 @@ function getProvider() {
 
 const USDC_ABI = [
   'function authorizationState(address authorizer, bytes32 nonce) view returns (bool)',
+  'function transferWithAuthorization(address from, address to, uint256 value, uint256 validAfter, uint256 validBefore, bytes32 nonce, uint8 v, bytes32 r, bytes32 s)',
 ];
+
+let _settlementWallet = null;
+function getSettlementWallet() {
+  if (!_settlementWallet) {
+    _settlementWallet = new ethers.Wallet(SETTLEMENT_PRIVATE_KEY, getProvider());
+  }
+  return _settlementWallet;
+}
+
+function getSettlementFailureReason(prefix, err) {
+  const httpReason = err?.response?.data?.reason || err?.response?.data?.message;
+  const directReason = err?.shortMessage || err?.reason || err?.message;
+  const reason = httpReason || directReason || String(err);
+  return `${prefix}: ${reason}`;
+}
+
+function buildFacilitatorRequest(signature, auth, config) {
+  return {
+    paymentPayload: {
+      x402Version: 1,
+      signature,
+      payload: {
+        authorization: auth,
+      },
+    },
+    paymentRequirements: {
+      scheme: 'exact',
+      network: config.network,
+      maxAmountRequired: String(config.maxAmountRequired),
+      payTo: config.payTo,
+      maxTimeoutSeconds: 60,
+      asset: config.asset,
+      extra: {
+        name: 'USD Coin',
+        version: '2',
+        chainId: 8453,
+      },
+    },
+  };
+}
 
 // ── Facilitator settlement stub ──────────────────────────────────────────────
 /**
- * TODO (CRITICAL — required before go-live):
- *   Replace this stub with a real call to the x402 facilitator or on-chain settlement.
- *
- *   Option A — Coinbase facilitator (recommended once Base mainnet is supported):
- *     POST https://x402.org/facilitator/settle
- *     Body: { signature, authorization, payTo, asset, network }
- *     The facilitator submits the transferWithAuthorization and returns a receipt.
- *
- *   Option B — Self-settle via ethers:
- *     const usdc = new ethers.Contract(USDC_ADDRESS, [...], signer);
- *     await usdc.transferWithAuthorization(
- *       auth.from, auth.to, auth.value, auth.validAfter, auth.validBefore, auth.nonce, signature
- *     );
- *
- *   Until settlement is wired in, the verifier only confirms the *signature* is valid
- *   and the authorization hasn't been spent on-chain yet. Funds do NOT move.
- *
  * @param {string} signature  - EIP-712 signature
  * @param {object} auth       - EIP-3009 authorization object
  * @param {object} config     - { payTo, asset, network }
  * @returns {Promise<{settled: boolean, txHash?: string, reason?: string}>}
  */
 async function submitSettlement(signature, auth, config) {
-  // STUB: log intent and return unsettled.
-  // Replace with real facilitator/on-chain call before production.
-  console.warn(
-    '[verifier] SETTLEMENT STUB: transferWithAuthorization not submitted. ' +
-    'Signature verified, funds NOT moved. See TODO in verifier.js.'
-  );
+  const settlementMode = getSettlementMode();
 
-  // Example facilitator call (disabled — uncomment and complete when ready):
-  /*
-  const resp = await fetch(`${FACILITATOR_URL}/settle`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      signature,
-      authorization: auth,
-      payTo: config.payTo,
-      asset: config.asset,
-      network: config.network,
-    }),
-  });
-  if (!resp.ok) {
-    const err = await resp.text();
-    return { settled: false, reason: `Facilitator error: ${err}` };
+  if (settlementMode === 'direct') {
+    if (!SETTLEMENT_PRIVATE_KEY) {
+      return {
+        settled: false,
+        reason: 'Direct settlement selected but X402_SETTLEMENT_PRIVATE_KEY is not configured',
+      };
+    }
+
+    try {
+      const signer = getSettlementWallet();
+      const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, signer);
+      const sig = ethers.Signature.from(signature);
+
+      const tx = await usdc.transferWithAuthorization(
+        auth.from,
+        auth.to,
+        auth.value,
+        auth.validAfter,
+        auth.validBefore,
+        auth.nonce,
+        sig.v,
+        sig.r,
+        sig.s,
+      );
+
+      const receipt = await tx.wait(1);
+      if (!receipt || receipt.status !== 1) {
+        return { settled: false, reason: 'Direct settlement transaction failed' };
+      }
+
+      return {
+        settled: true,
+        txHash: tx.hash,
+      };
+    } catch (err) {
+      return {
+        settled: false,
+        reason: getSettlementFailureReason('Direct settlement failed', err),
+      };
+    }
   }
-  const data = await resp.json();
-  return { settled: true, txHash: data.txHash };
-  */
 
-  return { settled: false, reason: 'Settlement stub — funds not moved (see verifier.js TODO)' };
+  if (settlementMode === 'facilitator') {
+    if (!FACILITATOR_URL) {
+      return {
+        settled: false,
+        reason: 'Facilitator settlement selected but X402_FACILITATOR_URL is not configured',
+      };
+    }
+
+    try {
+      const response = await axios.post(
+        `${FACILITATOR_URL.replace(/\/$/, '')}/settle`,
+        buildFacilitatorRequest(signature, auth, config),
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(FACILITATOR_API_KEY ? { Authorization: `Bearer ${FACILITATOR_API_KEY}` } : {}),
+          },
+          timeout: 15_000,
+        }
+      );
+
+      const data = response.data || {};
+      const txHash = data.txHash ||
+        data.transactionHash ||
+        data.transaction ||
+        data.receipt?.transactionHash ||
+        data.receipt?.hash ||
+        null;
+      const settled = data.settled === true || data.success === true || Boolean(txHash);
+
+      if (!settled) {
+        return {
+          settled: false,
+          reason: data.reason || data.message || 'Facilitator did not confirm settlement',
+        };
+      }
+
+      return {
+        settled: true,
+        txHash,
+      };
+    } catch (err) {
+      return {
+        settled: false,
+        reason: getSettlementFailureReason('Facilitator settlement failed', err),
+      };
+    }
+  }
+
+  return {
+    settled: false,
+    reason: 'EIP-3009 settlement is not configured. Set X402_SETTLEMENT_PRIVATE_KEY for direct settlement or X402_FACILITATOR_URL for a custom facilitator.',
+  };
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
@@ -409,9 +507,8 @@ async function verifyByTxHash(decoded, config) {
  *   then promoted to 'settled' on success or 'failed' on failure (allows retry).
  *
  * What this does NOT do:
- *   - It does NOT submit the transferWithAuthorization to the blockchain.
- *   - Funds do NOT move until the settlement stub is replaced with a real call.
- *   See the submitSettlement TODO above.
+ *   - It does NOT accept an authorization alone as payment.
+ *   - Funds must move successfully through direct settlement or a configured facilitator.
  */
 async function verifyEIP3009(signature, auth, config) {
   let nonceKey = null;
@@ -444,6 +541,17 @@ async function verifyEIP3009(signature, auth, config) {
     return { valid: false, reason: 'Payment already in progress — duplicate submission rejected' };
   }
   // nonceState === 'failed' or null → proceed with verification
+
+  // ── Verify recipient ──────────────────────────────────────────────────
+  if (!ethers.isAddress(auth.from)) {
+    return { valid: false, reason: 'Invalid authorization sender address' };
+  }
+  if (!ethers.isAddress(auth.to)) {
+    return { valid: false, reason: 'Invalid authorization recipient address' };
+  }
+  if (!/^0x[0-9a-fA-F]{64}$/.test(auth.nonce)) {
+    return { valid: false, reason: 'Invalid authorization nonce (expected bytes32 hex)' };
+  }
 
   // ── Verify recipient ──────────────────────────────────────────────────
   if (auth.to.toLowerCase() !== config.payTo.toLowerCase()) {
@@ -521,6 +629,7 @@ async function verifyEIP3009(signature, auth, config) {
       valid: true,
       mock: false,
       settled: true,
+      txHash: settlement.txHash,
       payer: auth.from,
       amount: auth.value,
       nonce: auth.nonce,
@@ -532,14 +641,13 @@ async function verifyEIP3009(signature, auth, config) {
   setNonceState(nonceKey, 'failed');
 
   // SECURITY: A valid signature alone is NOT sufficient — funds must actually move.
-  // Until the facilitator is wired up, settlement.settled will be false.
   // Return valid: false so the middleware rejects the request rather than serving
   // paid content for free.
   return {
     valid: false,
     mock: false,
     settled: false,
-    reason: settlement.reason || 'Payment authorization verified but settlement pending — facilitator not yet configured.',
+    reason: settlement.reason || 'Payment authorization verified but settlement failed or is not configured.',
     payer: auth.from,
     amount: auth.value,
     nonce: auth.nonce,

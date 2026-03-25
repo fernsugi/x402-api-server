@@ -45,12 +45,14 @@ Wallet portfolio: holdings, DeFi positions, activity metrics, risk classificatio
 ## Payment Flow
 1. Agent calls endpoint without payment → receives 402 with payment instructions
 2. Agent pays on Base and retries with X-Payment header containing Base64 JSON proof
-3. Current production-ready proof format in this repo: {"txHash":"0x...","payer":"0x..."}
-4. Server verifies the on-chain USDC transfer and returns data
+3. Supported proof formats in this repo:
+   - txHash proof: {"txHash":"0x...","payer":"0x..."}
+   - EIP-3009 proof: Base64 JSON containing a signature plus payload.authorization
+4. Server verifies and settles payment before returning data
 
 ## Notes
-- The repo also contains a partial EIP-3009 transferWithAuthorization verifier
-- Signature-based settlement is not fully wired through in this codebase yet
+- txHash proof works without extra settlement credentials
+- EIP-3009 settlement requires either X402_SETTLEMENT_PRIVATE_KEY or X402_FACILITATOR_URL
 
 ## Integrations
 - MCP Server: @x402-api/mcp-server

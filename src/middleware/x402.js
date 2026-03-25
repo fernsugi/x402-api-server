@@ -14,11 +14,17 @@
 
 const { verifyPayment } = require('../services/verifier');
 const { BAZAAR_SCHEMAS } = require('../bazaar-schemas');
+const {
+  FACILITATOR_URL,
+  getSettlementMode,
+  getSupportedPaymentProofs,
+  getExperimentalPaymentProofs,
+} = require('../payment-config');
 
 const PAY_TO_ADDRESS = process.env.PAY_TO_ADDRESS || '0x60264c480b67adb557efEd22Cf0e7ceA792DefB7';
-const FACILITATOR_URL = process.env.X402_FACILITATOR_URL || null;
-const SUPPORTED_PAYMENT_PROOFS = Object.freeze(['txHash']);
-const EXPERIMENTAL_PAYMENT_PROOFS = Object.freeze(['eip3009_transferWithAuthorization']);
+const SETTLEMENT_MODE = getSettlementMode();
+const SUPPORTED_PAYMENT_PROOFS = Object.freeze(getSupportedPaymentProofs());
+const EXPERIMENTAL_PAYMENT_PROOFS = Object.freeze(getExperimentalPaymentProofs());
 
 /**
  * Factory: Express middleware enforcing x402 payment.
@@ -71,6 +77,7 @@ function requirePayment(config) {
               chainId: 8453,
               supportedProofs: SUPPORTED_PAYMENT_PROOFS,
               experimentalProofs: EXPERIMENTAL_PAYMENT_PROOFS,
+              settlementMode: SETTLEMENT_MODE,
               ...(FACILITATOR_URL ? { facilitatorUrl: FACILITATOR_URL } : {}),
             },
           },
@@ -104,8 +111,8 @@ function requirePayment(config) {
       if (!result.settled && !result.mock) {
         return res.status(402).json({
           x402Version: 1,
-          error: 'Payment authorization verified but settlement pending — facilitator not yet configured.',
-          reason: result.settlementNote || 'Funds have not moved. Wire up the facilitator before go-live.',
+          error: 'Payment authorization verified but settlement failed or is not configured.',
+          reason: result.settlementNote || result.reason || 'Funds have not moved. Configure direct settlement or a custom facilitator.',
         });
       }
 
