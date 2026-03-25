@@ -366,7 +366,8 @@ async function verifyPayment(paymentHeader, config) {
     return { valid: false, reason: 'Invalid payment header format (expected Base64 JSON)' };
   }
 
-  const { signature, payload } = decoded;
+  const signature = decoded.signature || decoded?.payload?.signature;
+  const authorization = decoded?.payload?.authorization;
 
   // Support both facilitator-style (signature + payload.authorization) and
   // simple tx-hash style (txHash field) for flexibility
@@ -374,11 +375,11 @@ async function verifyPayment(paymentHeader, config) {
     return await verifyByTxHash(decoded, config);
   }
 
-  if (!signature || !payload?.authorization) {
+  if (!signature || !authorization) {
     return { valid: false, reason: 'Missing signature or authorization in payment payload' };
   }
 
-  return await verifyEIP3009(signature, payload.authorization, config);
+  return await verifyEIP3009(signature, authorization, config);
 }
 
 /**
