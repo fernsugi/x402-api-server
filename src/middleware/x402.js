@@ -41,6 +41,7 @@ function requirePayment(config) {
     maxAmountRequired,
     scheme = 'exact',
     network = 'base',
+    maxTimeoutSeconds = 60,
     asset = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913', // USDC on Base
   } = config;
 
@@ -66,6 +67,7 @@ function requirePayment(config) {
             asset,
             payTo: PAY_TO_ADDRESS,
             maxAmountRequired: String(maxAmountRequired),
+            maxTimeoutSeconds,
             resource: `${req.protocol}://${req.get('host')}${resource}`,
             description,
             mimeType: 'application/json',
