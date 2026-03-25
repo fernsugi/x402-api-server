@@ -1,8 +1,20 @@
 {
   "name": "x402-api-server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "x402 protocol demo API server — pay-per-call crypto/DeFi data endpoints using HTTP 402 + USDC on Base",
   "main": "src/index.js",
+  "files": [
+    "src",
+    "data",
+    "README.md",
+    ".env.example",
+    "Dockerfile",
+    "docker-compose.yml",
+    "fly.toml",
+    "deploy.sh",
+    "agent-registration.json",
+    "register-erc8004.js"
+  ],
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js"
