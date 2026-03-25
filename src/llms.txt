@@ -50,6 +50,7 @@ Wallet portfolio: holdings, DeFi positions, activity metrics, risk classificatio
 
 ## Integrations
 - MCP Server: @x402-api/mcp-server
+- MCP Server Repo: https://github.com/fernsugi/x402-api-mcp-server
 - ElizaOS Plugin: @x402-api/elizaos-plugin
 - x402-fetch (Coinbase): automatic 402 → pay → retry
 

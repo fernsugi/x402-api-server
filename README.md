@@ -206,7 +206,10 @@ This lets discovery services, AI marketplaces, and other agents find and verify 
 
 ### MCP Server (Claude Desktop / Claude API)
 
-The [`mcp-server/`](./mcp-server/) directory contains an MCP (Model Context Protocol) server that exposes all 8 endpoints as Claude-compatible tools.
+The MCP (Model Context Protocol) server now lives in its own standalone repo:
+
+- GitHub: [fernsugi/x402-api-mcp-server](https://github.com/fernsugi/x402-api-mcp-server)
+- npm: [`@x402-api/mcp-server`](https://www.npmjs.com/package/@x402-api/mcp-server)
 
 **Quick setup:**
 
@@ -234,7 +237,7 @@ X402_WALLET_PRIVATE_KEY=0x... npx @x402-api/mcp-server
 }
 ```
 
-→ See [`mcp-server/README.md`](./mcp-server/README.md) for full docs.
+→ See the standalone MCP repo for full docs: [x402-api-mcp-server README](https://github.com/fernsugi/x402-api-mcp-server#readme)
 
 ### ElizaOS Plugin
 
@@ -311,7 +314,9 @@ src/
     └── index.html           # Landing page
 
 elizaos-plugin/              # @x402-api/elizaos-plugin
-mcp-server/                  # @x402-api/mcp-server
+
+Standalone sibling repo:
+x402-api-mcp-server/         # @x402-api/mcp-server
 ```
 
 ---
@@ -350,7 +355,7 @@ docker compose up -d
 - ⛓️ [Base Chain](https://base.org)
 - 🔎 [Agent #18763 on BaseScan](https://basescan.org/address/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432)
 - 📝 [ERC-8004 Spec](https://eips.ethereum.org/EIPS/eip-8004)
-- 🤖 [MCP Server](./mcp-server/)
+- 🤖 [MCP Server](https://github.com/fernsugi/x402-api-mcp-server)
 - 🤖 [ElizaOS Plugin](./elizaos-plugin/)
 
 ---
