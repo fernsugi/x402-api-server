@@ -379,3 +379,8 @@ docker compose up -d
 ## License
 
 MIT
+
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/fernsugi-x402-api-server).
+
