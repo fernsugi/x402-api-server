@@ -54,6 +54,7 @@ This model is designed for **AI agents**: autonomous software that needs to call
 | `GET /api/wallet-profiler` | **0.008 USDC** | Wallet portfolio analysis, holdings, activity, risk profile |
 | `GET /api/endpoints` | **Free** | Machine-readable endpoint catalog |
 | `GET /health` | **Free** | Health check |
+- [JMT x402 Agent Tools](https://jmt-x402-proxy.jmthomasofficial.workers.dev) — 25 paid x402 endpoints on Base mainnet: web search, AI analysis, crypto/stock data, SEC filings, company intel, news, sentiment, macro dashboard. $0.001-$0.15/call USDC. Local LLM-powered.
 
 ### Query Parameters
 
