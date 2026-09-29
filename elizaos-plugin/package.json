@@ -1,6 +1,6 @@
 {
   "name": "@x402-api/elizaos-plugin",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "ElizaOS plugin for Sugi's x402 DeFi API — pay-per-call crypto/DeFi intelligence via HTTP 402 + USDC on Base",
   "type": "module",
   "main": "dist/index.js",
@@ -19,13 +19,15 @@
     "dist",
     "package.json",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "examples"
   ],
   "scripts": {
     "build": "tsc --outDir dist --declaration",
     "dev": "tsc --outDir dist --declaration --watch",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build",
+    "test": "npm run build && node --test test/*.test.mjs"
   },
   "keywords": [
     "elizaos",
@@ -35,19 +37,35 @@
     "defi",
     "crypto",
     "ai-agent",
+    "autonomous-agent",
     "usdc",
     "base",
     "price-feed",
     "gas-tracker",
     "dex",
+    "dex-aggregator",
     "yield",
-    "whale-tracker"
+    "yield-farming",
+    "whale-tracker",
+    "wallet-analysis",
+    "token-scanner",
+    "funding-rates",
+    "micropayments",
+    "http-402"
   ],
   "author": "Sugi",
   "license": "MIT",
+  "homepage": "https://github.com/fernsugi/x402-api-server#readme",
+  "bugs": {
+    "url": "https://github.com/fernsugi/x402-api-server/issues"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/fernsugi/x402-api-server"
+    "url": "https://github.com/fernsugi/x402-api-server",
+    "directory": "elizaos-plugin"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "peerDependencies": {
     "@elizaos/core": ">=1.0.0"
@@ -57,10 +75,10 @@
     "@types/node": "^22.19.11",
     "typescript": "^5.9.3"
   },
-  "optionalDependencies": {
-    "x402-fetch": "^1.0.0"
-  },
   "publishConfig": {
     "access": "public"
+  },
+  "optionalDependencies": {
+    "viem": "^2.46.2"
   }
 }

@@ -70,7 +70,7 @@ export interface X402PluginConfig {
  * ```
  */
 export function createX402Plugin(pluginConfig: X402PluginConfig = {}): Plugin {
-  let clientConfig: X402ClientConfig = {
+  const clientConfig: X402ClientConfig = {
     baseUrl: pluginConfig.baseUrl || X402_API_BASE_URL,
     timeoutMs: pluginConfig.timeoutMs || 30_000,
   };
@@ -108,12 +108,14 @@ export function createX402Plugin(pluginConfig: X402PluginConfig = {}): Plugin {
         process.env.X402_API_BASE_URL ||
         X402_API_BASE_URL;
 
-      clientConfig = {
+      // Actions close over this object when the plugin is created. Update it in
+      // place so they see settings resolved during init.
+      Object.assign(clientConfig, {
         baseUrl,
         walletPrivateKey: privateKey,
         walletAddress,
         timeoutMs: pluginConfig.timeoutMs || 30_000,
-      };
+      });
 
       if (privateKey) {
         console.log('[x402-plugin] Wallet configured — automatic payment enabled');

@@ -4,21 +4,19 @@ import type { ArbOpportunity } from '../types.js';
 
 interface FundingRatesResponse {
   timestamp: string;
-  source: string;
+  source: string[];
   protocols: string[];
   assets_covered: string[];
   funding_interval_hours: number;
   data: Record<string, Record<string, {
     funding_rate: number;
     annualized_pct: number;
-    open_interest_usd: number;
-    next_funding_in_ms: number;
+    open_interest_usd: number | null;
+    rate_kind: string;
   }>>;
   arb_opportunities: ArbOpportunity[];
   query: Record<string, unknown>;
 }
-
-const SIGNAL_EMOJIS = { STRONG: '🚀', MODERATE: '📈', WEAK: '💤' } as const;
 
 export function createFundingRatesAction(config: X402ClientConfig): Action {
   return {
@@ -34,8 +32,8 @@ export function createFundingRatesAction(config: X402ClientConfig): Action {
       'DYDX_FUNDING',
     ],
     description:
-      'Get perpetual futures funding rates across Hyperliquid, dYdX v4, Aevo, GMX, Drift, and Vertex. ' +
-      'Identifies funding rate arbitrage opportunities (long/short spread capture). ' +
+      'Get hourly perpetual funding rates from Hyperliquid and dYdX v4. ' +
+      'Reports indicative venue spreads; fees, basis risk, and funding changes are excluded. ' +
       'Costs $0.008 USDC via x402.',
 
     validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
@@ -69,13 +67,12 @@ export function createFundingRatesAction(config: X402ClientConfig): Action {
         const arbs = data.arb_opportunities.slice(0, 5);
         const arbLines = arbs.length > 0
           ? arbs.map(arb => {
-              const signal = SIGNAL_EMOJIS[arb.signal];
               return (
-                `${signal} **${arb.asset}**: ${arb.spread_bps} bps spread — ` +
-                `Long ${arb.long_venue}, Short ${arb.short_venue} → **${arb.annualized_arb_pct}% APR**`
+                `• **${arb.asset}**: ${arb.spread_bps} bps indicative spread — ` +
+                `${arb.long_venue} / ${arb.short_venue}`
               );
             }).join('\n')
-          : '  No significant arb opportunities found';
+          : '  No comparable venue spread found';
 
         // Show rates for specific asset if requested
         let assetSection = '';
@@ -92,9 +89,9 @@ export function createFundingRatesAction(config: X402ClientConfig): Action {
 
         const response =
           `## 📊 Funding Rates — ${asset || 'All Assets'}\n\n` +
-          `### Top Arbitrage Opportunities\n${arbLines}` +
+          `### Indicative Venue Spreads\n${arbLines}` +
           assetSection +
-          `\n\n*Funding interval: ${data.funding_interval_hours}h | Protocols: ${data.protocols.join(', ')} | ${data.timestamp}*`;
+          `\n\n*Current and predicted rates can differ. Fees and basis risk excluded. Interval: ${data.funding_interval_hours}h | Protocols: ${data.protocols.join(', ')} | ${data.timestamp}*`;
 
         if (callback) {
           await callback({ text: response, source: message.content.source });
@@ -111,11 +108,11 @@ export function createFundingRatesAction(config: X402ClientConfig): Action {
     examples: [
       [
         { name: '{{user}}', content: { text: 'What are the current perp funding rates?' } },
-        { name: '{{agent}}', content: { text: '## 📊 Funding Rates\n\n### Top Arb Opportunities\n🚀 BTC: 12 bps spread — Long dYdX, Short Drift → 24.5% APR\n📈 ETH: 8 bps — Long GMX, Short Aevo → 14.2% APR', actions: ['GET_FUNDING_RATES'] } },
+        { name: '{{agent}}', content: { text: 'Fetching current Hyperliquid and predicted dYdX funding rates for indicative spreads.', actions: ['GET_FUNDING_RATES'] } },
       ],
       [
         { name: '{{user}}', content: { text: 'Is there a funding rate arb for ETH?' } },
-        { name: '{{agent}}', content: { text: 'Checking ETH funding rates across all perp venues...', actions: ['GET_FUNDING_RATES'] } },
+        { name: '{{agent}}', content: { text: 'Checking ETH rates on Hyperliquid and dYdX...', actions: ['GET_FUNDING_RATES'] } },
       ],
     ],
   };

@@ -1,8 +1,14 @@
 # @x402-api/elizaos-plugin
 
+[![npm version](https://img.shields.io/npm/v/@x402-api/elizaos-plugin.svg)](https://www.npmjs.com/package/@x402-api/elizaos-plugin)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![ElizaOS](https://img.shields.io/badge/ElizaOS-v1.0+-blue.svg)](https://github.com/elizaOS/eliza)
+
 > ElizaOS plugin for **pay-per-call DeFi intelligence** — powered by [x402](https://x402.org) micropayments (USDC on Base)
 
 Give your ElizaOS agent real-time access to 8 DeFi data endpoints for as little as **$0.001 per query**. No API keys, no subscriptions — just pay per call in USDC.
+
+**Quick links:** [Examples](./examples/) • [API Docs](https://x402-api.fly.dev) • [GitHub](https://github.com/fernsugi/x402-api-server)
 
 ## Endpoints
 
@@ -32,7 +38,7 @@ bun add @x402-api/elizaos-plugin
 ### For automatic payments (required for production)
 
 ```bash
-npm install x402-fetch viem
+npm install viem
 ```
 
 ---
@@ -74,6 +80,24 @@ Your wallet needs USDC on Base. Get some from:
 - [bridge.base.org](https://bridge.base.org) → bridge from Ethereum
 
 Costs are tiny — $1 of USDC covers **125–1000 queries** depending on the endpoint.
+
+---
+
+## 📚 Examples
+
+Check out the [examples/](./examples/) directory for complete working examples:
+
+- **[basic-usage.ts](./examples/basic-usage.ts)** — Minimal setup for price checks (⭐ beginner)
+- **[defi-portfolio.ts](./examples/defi-portfolio.ts)** — Full portfolio tracker with multiple endpoints (⭐⭐ intermediate)
+- **[price-monitoring.ts](./examples/price-monitoring.ts)** — Advanced monitoring with alerts and automation (⭐⭐⭐ advanced)
+
+Each example includes:
+- Full working code with detailed comments
+- Cost breakdowns
+- Expected output samples
+- Troubleshooting tips
+
+**Quick start:** Copy an example to your `src/character.ts` and run!
 
 ---
 
@@ -128,7 +152,7 @@ Current gas prices across Ethereum, Base, Polygon, and Arbitrum. Returns slow/no
 ---
 
 ### 🔄 GET_DEX_QUOTES
-Compare swap quotes across Uniswap V3, SushiSwap, and 1inch for any token pair. Shows price impact, fees, gas costs, and best route.
+Get one ParaSwap aggregate route for a supported pair. Shows expected output and route components. Independent venue comparison and price impact are unavailable.
 
 **Triggers when you say:**
 - "What's the best rate to swap 1 ETH for USDC?"
@@ -140,7 +164,7 @@ Compare swap quotes across Uniswap V3, SushiSwap, and 1inch for any token pair. 
 ---
 
 ### 🔍 SCAN_TOKEN
-Security scan for any ERC-20 token. Checks: contract verification, proxy/upgradeable, mint function, liquidity lock, honeypot detection, buy/sell tax, holder count, risk score.
+GoPlus ERC-20 security signals and a disclosed heuristic score. Unavailable checks are shown as unknown; this is not an audit.
 
 **Triggers when you say:**
 - "Is PEPE safe? Check for rug"
@@ -152,7 +176,7 @@ Security scan for any ERC-20 token. Checks: contract verification, proxy/upgrade
 ---
 
 ### 🐋 TRACK_WHALES
-Top holder distribution analysis. Returns concentration metrics (Gini coefficient, Herfindahl index), distribution buckets, top 20 holders with labels, and recent large transfers.
+GoPlus top-holder sample and reported supply share. Gini, complete distribution, and recent transfers are unavailable.
 
 **Triggers when you say:**
 - "Are whales accumulating ETH?"
@@ -162,7 +186,7 @@ Top holder distribution analysis. Returns concentration metrics (Gini coefficien
 ---
 
 ### 🌾 SCAN_YIELDS
-Find the best DeFi yield opportunities across 10+ protocols: Aave, Compound, Morpho, Lido, Rocket Pool, Pendle, Ethena, Maker DSR, Convex, Yearn, Aerodrome, and more. Filter by chain, asset, TVL, and risk tier.
+Read DefiLlama pool APY and TVL, filtered by chain, asset, and TVL. APY is provider reported; no safety rating is inferred.
 
 **Triggers when you say:**
 - "What are the best DeFi yields right now?"
@@ -172,7 +196,7 @@ Find the best DeFi yield opportunities across 10+ protocols: Aave, Compound, Mor
 ---
 
 ### 📊 GET_FUNDING_RATES
-Perpetual futures funding rates across Hyperliquid, dYdX v4, Aevo, GMX, Drift, and Vertex. Automatically identifies arbitrage opportunities (long on lowest-rate venue, short on highest).
+Hourly perpetual funding from Hyperliquid and dYdX v4, with indicative spreads. Current and predicted rates differ; fees and basis risk are excluded.
 
 **Triggers when you say:**
 - "What are the current perp funding rates?"
@@ -182,7 +206,7 @@ Perpetual futures funding rates across Hyperliquid, dYdX v4, Aevo, GMX, Drift, a
 ---
 
 ### 👛 PROFILE_WALLET
-Full wallet analysis: portfolio breakdown, DeFi positions, activity metrics, risk classification. Supports ENS and known wallet labels.
+Observed priced wallet balances and available transaction counts from Blockscout. Coverage can be partial; DeFi positions, PnL, ENS labels, and risk classification are unavailable.
 
 **Triggers when you say:**
 - "Analyze wallet 0xd8dA..."
@@ -198,16 +222,16 @@ The [x402 protocol](https://x402.org) is a standard for HTTP micropayments:
 ```
 1. Agent → GET /api/price-feed
 2. Server → 402 Payment Required + payment details
-3. x402-fetch → sign & broadcast USDC transfer on Base
+3. Plugin signs Base USDC EIP-3009 authorization within a 0.01 USDC default per-call cap
 4. Agent → GET /api/price-feed + X-PAYMENT header
 5. Server → validate payment → 200 OK + data
 ```
 
-This happens **automatically** when you install `x402-fetch` and provide a wallet key. From your agent's perspective, it's just a normal API call.
+This happens automatically when `viem` and a wallet key are configured and the API advertises EIP-3009 settlement.
 
-### Without x402-fetch
+### Without viem or a wallet key
 
-If `x402-fetch` is not installed, the plugin will:
+If automatic payment is not configured, the plugin will:
 1. Make the request
 2. Receive a 402 response
 3. Throw a helpful error explaining how to configure payment
@@ -303,7 +327,7 @@ Set a dummy private key to test plugin loading (calls will fail at payment step)
 X402_WALLET_PRIVATE_KEY=0x0000000000000000000000000000000000000000000000000000000000000001
 ```
 
-Or mock `x402-fetch` in your tests.
+Or use a local mock 402 server when testing payment signing.
 
 ---
 

@@ -16,8 +16,8 @@ export function createWhaleTrackerAction(config: X402ClientConfig): Action {
       'LARGE_HOLDERS',
     ],
     description:
-      'Analyze whale concentration and top holder distribution for any token. ' +
-      'Returns top holders, Gini coefficient, distribution buckets, and recent large transfers. ' +
+      'Inspect a GoPlus sample of top ERC-20 holders and their reported supply share. ' +
+      'Full distribution, Gini, and recent transfer history are unavailable. ' +
       'Costs $0.005 USDC via x402.',
 
     validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
@@ -35,7 +35,7 @@ export function createWhaleTrackerAction(config: X402ClientConfig): Action {
         const text = message.content.text || '';
 
         const symbolMatch = text.match(/\b(BTC|ETH|SOL|PEPE|SHIB|DOGE|LINK|UNI|AAVE|ARB|OP|SUI|AVAX)\b/i);
-        const chainMatch = text.match(/\b(ethereum|base|solana|arbitrum|optimism)\b/i);
+        const chainMatch = text.match(/\b(ethereum|base|arbitrum|polygon)\b/i);
 
         const token = ((options as unknown as Record<string, unknown>)?.token as string) || symbolMatch?.[1]?.toUpperCase() || 'ETH';
         const chain = ((options as unknown as Record<string, unknown>)?.chain as string) || chainMatch?.[1]?.toLowerCase() || 'ethereum';
@@ -49,26 +49,16 @@ export function createWhaleTrackerAction(config: X402ClientConfig): Action {
         const w = data.data;
         const cm = w.concentration_metrics;
 
-        // Concentration health indicator
-        const giniRisk = cm.gini_coefficient > 0.8 ? '🔴 Very concentrated'
-          : cm.gini_coefficient > 0.65 ? '🟡 Moderately concentrated'
-          : '🟢 Well distributed';
-
         const topHolderLines = w.top_holders.slice(0, 5)
-          .map(h => `  ${h.rank}. ${h.label} (${h.wallet_type}): **${h.percentage}%**`)
-          .join('\n');
-
-        const recentTx = w.recent_large_transfers
-          .map(tx => `  • $${tx.usd_value.toLocaleString()} ${tx.transfer_type} — ${new Date(tx.timestamp).toLocaleDateString()}`)
+          .map(h => `  ${h.rank}. ${h.label || h.address} (${h.wallet_type}): **${h.percentage ?? 'unknown'}%**`)
           .join('\n');
 
         const response =
           `## 🐋 Whale Tracker: ${w.token} on ${w.chain}\n\n` +
-          `**Distribution:** ${giniRisk}\n` +
-          `**Gini coefficient:** ${cm.gini_coefficient} | **Top 10 hold:** ${cm.top_10_pct}%\n` +
-          `**Total holders:** ${w.holder_count?.toLocaleString()}\n\n` +
-          `### Top 5 Holders\n${topHolderLines}\n\n` +
-          `### Recent Large Transfers\n${recentTx || '  No recent large transfers'}`;
+          `**Reported top ${Math.min(10, w.coverage.holders_returned)} hold:** ${cm.top_10_pct}%\n` +
+          `**Total holders:** ${w.holder_count?.toLocaleString() ?? 'not reported'}\n\n` +
+          `### Top Holders\n${topHolderLines || 'No holder rows returned'}\n\n` +
+          `*${w.coverage.note}*`;
 
         if (callback) {
           await callback({ text: response, source: message.content.source });
@@ -85,11 +75,11 @@ export function createWhaleTrackerAction(config: X402ClientConfig): Action {
     examples: [
       [
         { name: '{{user}}', content: { text: 'Are whales accumulating ETH?' } },
-        { name: '{{agent}}', content: { text: '## 🐋 Whale Tracker: ETH\n\nTop 10 holders own 42% of supply. Gini: 0.72\n\nRecent large transfers detected...', actions: ['TRACK_WHALES'] } },
+        { name: '{{agent}}', content: { text: 'Fetching live top-holder sample for ETH.', actions: ['TRACK_WHALES'] } },
       ],
       [
         { name: '{{user}}', content: { text: 'Show me whale activity for PEPE' } },
-        { name: '{{agent}}', content: { text: 'Fetching PEPE whale distribution and recent transfers...', actions: ['TRACK_WHALES'] } },
+        { name: '{{agent}}', content: { text: 'Fetching PEPE top-holder sample...', actions: ['TRACK_WHALES'] } },
       ],
     ],
   };
