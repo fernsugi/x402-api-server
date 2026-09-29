@@ -26,6 +26,7 @@ The MCP and two ElizaOS clients sign the API's Base USDC EIP-3009 challenge with
 
 ## Discovery and revenue
 
+- [Base Blockscout's incoming token-transfer history](https://base.blockscout.com/address/0x60264c480b67adb557efEd22Cf0e7ceA792DefB7?tab=token_transfers) for the configured payee showed 294 Base USDC `transferWithAuthorization` receipts totaling **1.249 USDC** from 20 March through 26 September 2026 (queried 29 September; seven API pages, 301 incoming token transfers scanned). This is gross on-chain wallet inflow, not net profit. The chain alone cannot attribute every receipt to this API, and Fly logs do not cover the full period. The new structured settlement log will support route-level attribution going forward.
 - Confirmed public listings: `xpaysh/awesome-x402`, the official MCP Registry, Glama, PulseMCP, 24K Labs, VerifyMCP, 402radar, and npm `@x402-api/mcp-server`. The MCP npm package and official Registry both serve 1.0.4 as of 29 September 2026. Third-party directories may still show older metadata until they recrawl.
 - API 1.0.3 was deployed to Fly on 29 September 2026. `/.well-known/x402`, `/openapi.json`, catalog links, and the domain registration file are live. Free health/catalog routes returned 200; all eight paid routes returned 402 with v1-discoverable schema in an unpaid production smoke test. No real paid request was made.
 - Release versions: API 1.0.3 is live on Fly; MCP 1.0.4 and embedded ElizaOS plugin 1.0.2 are published on npm. The official MCP Registry entry is 1.0.4.
