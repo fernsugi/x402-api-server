@@ -26,9 +26,9 @@ The MCP and two ElizaOS clients sign the API's Base USDC EIP-3009 challenge with
 
 ## Discovery and revenue
 
-- Confirmed public listings: `xpaysh/awesome-x402`, the official MCP Registry, Glama, PulseMCP, 24K Labs, VerifyMCP, 402radar, and npm `@x402-api/mcp-server` (published at 1.0.3). The official MCP Registry API still serves 1.0.2. The local MCP package is prepared as 1.0.4 and must be published, then registered, to refresh those listings.
+- Confirmed public listings: `xpaysh/awesome-x402`, the official MCP Registry, Glama, PulseMCP, 24K Labs, VerifyMCP, 402radar, and npm `@x402-api/mcp-server`. The MCP npm package and official Registry both serve 1.0.4 as of 29 September 2026. Third-party directories may still show older metadata until they recrawl.
 - API 1.0.3 was deployed to Fly on 29 September 2026. `/.well-known/x402`, `/openapi.json`, catalog links, and the domain registration file are live. Free health/catalog routes returned 200; all eight paid routes returned 402 with v1-discoverable schema in an unpaid production smoke test. No real paid request was made.
-- Release versions: API 1.0.3 is live; MCP 1.0.4 and embedded ElizaOS plugin 1.0.2 are built locally and still unpublished.
+- Release versions: API 1.0.3 is live on Fly; MCP 1.0.4 and embedded ElizaOS plugin 1.0.2 are published on npm. The official MCP Registry entry is 1.0.4.
 - Base Agent #18763 is real and owned by the receiving wallet, but `tokenURI(18763)` is an embedded Base64 `data:` URI containing the old web and x402 root links. A server deploy will update the domain verification file, not that on-chain snapshot. Publishing the new OpenAPI link on-chain requires the owner's `setAgentURI` transaction.
 - The x402 v1 Bazaar field was malformed: `accepts[].outputSchema` held only the v2 output block. It now includes HTTP input, GET method, query parameters, and an example output. The official v1 extractor recognizes all eight routes. The self-hosted `/api/bazaar` catalog does not itself create an external Bazaar listing; facilitator indexing requires a compatible settled request.
 - Each successful non-mock settlement now writes a structured `x402_payment_settled` log with route, micro-USDC amount, and transaction hash. Use that together with 402 request counts and 503 counts to measure which routes convert and where provider failures lose sales. Do not change prices until this data shows demand by route.
@@ -44,15 +44,15 @@ The MCP and two ElizaOS clients sign the API's Base USDC EIP-3009 challenge with
 - Embedded ElizaOS plugin: fake-server signature and cap test.
 - Multichain ElizaOS package: fake-server signature and cap tests.
 - Eight routes were smoke-tested with local development mock payments and live public providers. Price feed used CoinLore when CoinGecko returned 403. The wallet route succeeded with Blockscout and its RPC fallback has a stubbed test.
-- No real USDC payment or npm publication was performed. The API production deployment and unpaid live smoke test passed.
+- No real USDC payment was performed. The API production deployment, unpaid live smoke test, npm publication, and official MCP Registry update passed.
 
 ## Release gates
 
 1. The Fly app has deployed `X402_SETTLEMENT_PRIVATE_KEY` and `X402_SETTLEMENT_MODE` secrets; their values were not read. Confirm a real EIP-3009 settlement with the dedicated test wallet before treating the paid flow as verified.
 2. Review client usage before deploying: legacy `txHash` proofs are disabled by default. Enable them only with a durable `X402_DATA_DIR` shared across every instance.
 3. Run one controlled mainnet EIP-3009 paid smoke test using a dedicated wallet after the deployment configuration is confirmed. `npm test` is free; `npm run test:eip3009` spends real USDC.
-4. Deploy the API and then release the MCP and ElizaOS packages together so schemas and clients stay aligned.
+4. API deployment and the MCP and embedded ElizaOS package releases are complete. Keep their schemas and clients aligned in future releases.
 5. Replace the DefiLlama legacy `/pools` source before **13 November 2026**. [DefiLlama says the free endpoint stops then](https://newsletter.defillama.com/p/your-exchange-s-numbers-might-not-be-real-here-s-how-to-check); later access requires an API plan or a different public source.
 6. Plan a separate x402 v2 migration and client compatibility test. This server currently speaks its legacy JSON x402 v1 challenge.
-7. Publish MCP package 1.0.4, then update the official MCP Registry entry from 1.0.2. Validate the new manifest against the registry schema before publishing (done locally).
+7. MCP package 1.0.4 and the official MCP Registry update are complete. Revalidate the manifest when publishing a future version.
 8. After the new discovery URLs are live, update Agent #18763's on-chain `agentURI` from the owner wallet if desired. This is an on-chain transaction and was not attempted.
