@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>x402-api — Pay-Per-Call DeFi Data for AI Agents</title>
   <meta name="description" content="Pay-per-call DeFi &amp; crypto data API for AI agents. 8 endpoints, USDC micropayments on Base, no API keys needed." />
+  <link rel="alternate" type="application/json" title="x402 agent discovery" href="/.well-known/x402" />
+  <link rel="alternate" type="application/json" title="OpenAPI" href="/openapi.json" />
 
   <style>
     /* ═══════════════════════════════════════════════════════════════════
@@ -461,7 +463,7 @@
     .s402 { color: var(--red); }
     .s200 { color: var(--green); }
 
-    /* ── x402-fetch example ───────────────────────────────────────── */
+    /* ── Client integration example ──────────────────────────────── */
     .fetch-section .sec-label { margin-bottom: 0.5rem; }
     .fetch-intro {
       color: var(--text-dim);
@@ -734,7 +736,7 @@
         <div class="value purple" id="server-url">https://x402-api.fly.dev</div>
         <div class="sub">
           8 pay-gated endpoints · x402 protocol<br>
-          Verifier: txHash proof + configurable EIP-3009 settlement
+          Payment: configured EIP-3009 settlement · legacy txHash opt-in
         </div>
       </div>
     </div>
@@ -821,42 +823,42 @@
           <td><span class="ep-method">GET</span></td>
           <td class="ep-path">/api/dex-quotes</td>
           <td class="ep-price">0.002 USDC</td>
-          <td class="ep-desc">Swap quotes across Uniswap V3, SushiSwap, 1inch. Price impact, fees, route. <code>?from=ETH&amp;to=USDC&amp;amount=1</code></td>
+          <td class="ep-desc">One live ParaSwap aggregate route. No independent venue comparison. <code>?from=ETH&amp;to=USDC&amp;amount=1</code></td>
           <td><span class="ep-status real">LIVE ✓</span></td>
         </tr>
         <tr>
           <td><span class="ep-method">GET</span></td>
           <td class="ep-path">/api/token-scanner</td>
           <td class="ep-price">0.003 USDC</td>
-          <td class="ep-desc">Token security analysis: contract verification, honeypot check, liquidity lock, mint function, risk score. <code>?token=PEPE</code></td>
+          <td class="ep-desc">GoPlus ERC-20 flags and a disclosed heuristic score; missing fields are null. <code>?token=PEPE</code></td>
           <td><span class="ep-status real">LIVE ✓</span></td>
         </tr>
         <tr>
           <td><span class="ep-method">GET</span></td>
           <td class="ep-path">/api/whale-tracker</td>
           <td class="ep-price">0.005 USDC</td>
-          <td class="ep-desc">Holder concentration: Gini coefficient, Herfindahl index, top 20 holders, large transfer alerts. <code>?token=ETH</code></td>
+          <td class="ep-desc">GoPlus top-holder sample and reported supply share. Full distribution and transfers unavailable. <code>?token=ETH</code></td>
           <td><span class="ep-status real">LIVE ✓</span></td>
         </tr>
         <tr>
           <td><span class="ep-method">GET</span></td>
           <td class="ep-path">/api/yield-scanner</td>
           <td class="ep-price">0.005 USDC</td>
-          <td class="ep-desc">Top DeFi yields across Aave, Compound, Morpho, Lido, Pendle, Ethena. Filter by chain, asset, TVL.</td>
+          <td class="ep-desc">DefiLlama pool APYs and TVL. Filter by chain, asset, TVL; no safety rating.</td>
           <td><span class="ep-status real">LIVE ✓</span></td>
         </tr>
         <tr>
           <td><span class="ep-method">GET</span></td>
           <td class="ep-path">/api/funding-rates</td>
           <td class="ep-price">0.008 USDC</td>
-          <td class="ep-desc">Perp funding rates on Hyperliquid, dYdX v4, Aevo, GMX, Drift, Vertex + arb spread ranking.</td>
+          <td class="ep-desc">Hyperliquid and dYdX hourly rates with indicative spreads; fees and basis risk excluded.</td>
           <td><span class="ep-status real">LIVE ✓</span></td>
         </tr>
         <tr>
           <td><span class="ep-method">GET</span></td>
           <td class="ep-path">/api/wallet-profiler</td>
           <td class="ep-price">0.008 USDC</td>
-          <td class="ep-desc">Wallet portfolio: holdings, DeFi positions, activity metrics, risk classification. <code>?address=0x…</code></td>
+          <td class="ep-desc">Blockscout priced wallet balances or limited public RPC fallback; partial coverage disclosed. <code>?address=0x…</code></td>
           <td><span class="ep-status real">LIVE ✓</span></td>
         </tr>
         <tr style="opacity:0.6">
@@ -872,8 +874,8 @@
     <div class="banner" style="background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);">
       <span class="banner-icon">✅</span>
       <div class="banner-text">
-        <strong>All 8 endpoints return live production data</strong>
-        Powered by CoinGecko · DefiLlama · Hyperliquid · GoPlus · Blockchair · public RPCs.
+        <strong>All 8 endpoints use live public data sources</strong>
+        Sources: CoinGecko · CoinLore · DefiLlama · Hyperliquid · dYdX · GoPlus · ParaSwap · Blockscout · public RPCs.
       </div>
     </div>
 
@@ -902,99 +904,39 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════════════════
-       HOW TO USE — x402-fetch CODE EXAMPLE
+       HOW TO USE — BASE USDC CLIENT
   ══════════════════════════════════════════════════════════════ -->
   <section class="fetch-section">
-    <div class="sec-label">Integration — x402-fetch</div>
+    <div class="sec-label">Integration — Base USDC clients</div>
 
     <p class="fetch-intro">
-      Use <code>x402-fetch</code> (the official Coinbase x402 client) to automatically handle
-      the payment flow. No manual header wrangling — it intercepts 402s, signs USDC transfers on Base, and retries.
+      Use the included MCP client for Base USDC EIP-3009 payment with a 0.01 USDC default per-call cap.
+      This server uses a JSON x402 v1 challenge; check other SDK versions before mainnet use.
     </p>
 
     <div class="tab-wrap">
       <div class="tab-bar">
-        <button class="tab-btn active" onclick="switchTab(this,'tab-ts')">TypeScript</button>
-        <button class="tab-btn" onclick="switchTab(this,'tab-py')">Python</button>
+        <button class="tab-btn active" onclick="switchTab(this,'tab-ts')">MCP</button>
         <button class="tab-btn" onclick="switchTab(this,'tab-curl')">cURL (manual)</button>
       </div>
 
-      <!-- TypeScript -->
+      <!-- MCP client -->
       <div class="tab-pane active" id="tab-ts">
         <div class="code-hdr">
-          <span class="code-lang">TypeScript · npm install x402-fetch viem</span>
+          <span class="code-lang">MCP · Base USDC EIP-3009</span>
           <button class="copy-btn" onclick="copyCode(this)">Copy</button>
         </div>
-<pre><span class="kw">import</span> { withPaymentInterceptor } <span class="kw">from</span> <span class="str">'x402-fetch'</span>;
-<span class="kw">import</span> { createWalletClient, http } <span class="kw">from</span> <span class="str">'viem'</span>;
-<span class="kw">import</span> { base } <span class="kw">from</span> <span class="str">'viem/chains'</span>;
-<span class="kw">import</span> { privateKeyToAccount } <span class="kw">from</span> <span class="str">'viem/accounts'</span>;
+<pre><span class="cmt"># Install the MCP client and signing dependency</span>
+npm install -g @x402-api/mcp-server viem
 
-<span class="cmt">// 1. Configure wallet with USDC on Base</span>
-<span class="kw">const</span> account = privateKeyToAccount(process.env.PRIVATE_KEY <span class="kw">as</span> `0x${<span class="kw">string</span>}`);
-<span class="kw">const</span> walletClient = createWalletClient({
-  account,
-  chain: base,
-  transport: http(),
-});
+<span class="cmt"># Set a dedicated Base wallet key with USDC</span>
+export X402_WALLET_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 
-<span class="cmt">// 2. Wrap fetch with x402 payment interceptor</span>
-<span class="kw">const</span> fetchWithPayment = withPaymentInterceptor(fetch, walletClient);
+<span class="cmt"># Start MCP; default payment cap is 0.01 USDC per call</span>
+x402-api-mcp
 
-<span class="cmt">// 3. Call endpoints — payment happens automatically on 402</span>
-<span class="kw">const</span> res = <span class="kw">await</span> fetchWithPayment(
-  <span class="str">'https://x402-api.fly.dev/api/price-feed'</span>
-);
-<span class="kw">const</span> { data } = <span class="kw">await</span> res.json();
-
-console.log(<span class="str">'BTC:'</span>, data.core[<span class="num">0</span>].price_usd);   <span class="cmt">// e.g. 98000</span>
-console.log(<span class="str">'ETH:'</span>, data.core[<span class="num">1</span>].price_usd);   <span class="cmt">// e.g. 2750</span>
-
-<span class="cmt">// Other endpoints — same pattern, different prices</span>
-<span class="kw">const</span> gas = <span class="kw">await</span> (
-  <span class="kw">await</span> fetchWithPayment(<span class="str">'https://x402-api.fly.dev/api/gas-tracker'</span>)
-).json();
-console.log(<span class="str">'ETH gas (normal):'</span>, gas.data.ethereum.gas_price_gwei.normal, <span class="str">'gwei'</span>);
-
-<span class="kw">const</span> yields = <span class="kw">await</span> (
-  <span class="kw">await</span> fetchWithPayment(
-    <span class="str">'https://x402-api.fly.dev/api/yield-scanner?chain=base&amp;min_tvl=1000000'</span>
-  )
-).json();
-console.log(<span class="str">'Top yield:'</span>, yields.data[<span class="num">0</span>].protocol, yields.data[<span class="num">0</span>].apy + <span class="str">'%'</span>);
-</pre>
-      </div>
-
-      <!-- Python -->
-      <div class="tab-pane" id="tab-py">
-        <div class="code-hdr">
-          <span class="code-lang">Python · pip install x402</span>
-          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-        </div>
-<pre><span class="kw">from</span> x402.client <span class="kw">import</span> X402Client
-<span class="kw">from</span> eth_account <span class="kw">import</span> Account
-
-<span class="cmt"># 1. Load your private key</span>
-account = Account.from_key(os.environ[<span class="str">"PRIVATE_KEY"</span>])
-
-<span class="cmt"># 2. Create client (auto-handles 402 → pay → retry)</span>
-client = X402Client(
-    account=account,
-    chain_id=<span class="num">8453</span>,   <span class="cmt"># Base mainnet</span>
-    rpc_url=<span class="str">"https://mainnet.base.org"</span>,
-)
-
-<span class="cmt"># 3. Fetch prices — payment deducted automatically</span>
-data = client.get(<span class="str">"https://x402-api.fly.dev/api/price-feed"</span>)
-print(<span class="str">f"BTC: ${data['data']['core'][0]['price_usd']:,.0f}"</span>)
-
-<span class="cmt"># Token security scan</span>
-scan = client.get(
-    <span class="str">"https://x402-api.fly.dev/api/token-scanner"</span>,
-    params={<span class="str">"token"</span>: <span class="str">"PEPE"</span>, <span class="str">"chain"</span>: <span class="str">"ethereum"</span>}
-)
-print(<span class="str">f"PEPE risk: {scan['data']['risk_level']} ({scan['data']['risk_score']}/100)"</span>)
-</pre>
+<span class="cmt"># In your MCP-capable agent, call get_crypto_prices, scan_yields, etc.
+# The API must advertise EIP-3009 settlement.</span></pre>
       </div>
 
       <!-- cURL manual -->
@@ -1020,7 +962,7 @@ curl -s https://x402-api.fly.dev/api/price-feed | jq .
 }
 
 <span class="cmt"># Step 2: Pay on-chain or sign EIP-3009 transferWithAuthorization
-# (use x402-fetch or Coinbase SDK — do not do this by hand in prod)</span>
+# use a compatible client; do not submit raw txHash unless legacy proof is enabled</span>
 
 <span class="cmt"># Step 3: Retry with X-Payment header (base64 JSON payload)</span>
 curl -s https://x402-api.fly.dev/api/price-feed \
@@ -1039,35 +981,22 @@ curl -s https://x402-api.fly.dev/api/price-feed \
     <!-- Example agent code -->
     <div class="code-wrap" style="margin-top:1.5rem">
       <div class="code-hdr">
-        <span class="code-lang">TypeScript · Agent using multiple endpoints in one session</span>
+        <span class="code-lang">TypeScript · Two paid reads</span>
         <button class="copy-btn" onclick="copyCode(this)">Copy</button>
       </div>
-<pre><span class="cmt">// DeFi scout agent — scans for arb opportunities using x402-api</span>
-<span class="kw">const</span> BASE_URL = <span class="str">'https://x402-api.fly.dev'</span>;
+<pre><span class="kw">import</span> { x402ApiRequest } <span class="kw">from</span> <span class="str">'@x402-api/elizaos-plugin'</span>;
 
-<span class="kw">async function</span> defiScout() {
-  <span class="cmt">// Pay 0.008 USDC — get funding rate arb opportunities</span>
-  <span class="kw">const</span> { arb_opportunities } = <span class="kw">await</span> (
-    <span class="kw">await</span> fetchWithPayment(`${BASE_URL}/api/funding-rates?asset=ETH`)
-  ).json();
+<span class="kw">const</span> config = { walletPrivateKey: process.env.X402_WALLET_PRIVATE_KEY };
+<span class="kw">const</span> funding = <span class="kw">await</span> x402ApiRequest&lt;{
+  arb_opportunities: Array&lt;{ spread_bps: number }&gt;
+}&gt;(<span class="str">'/api/funding-rates'</span>, { asset: <span class="str">'ETH'</span> }, config);
+<span class="kw">const</span> gas = <span class="kw">await</span> x402ApiRequest&lt;{
+  data: Record&lt;string, { gas_price_gwei: { normal: number | null } }&gt;
+}&gt;(<span class="str">'/api/gas-tracker'</span>, {}, config);
 
-  <span class="kw">const</span> strong = arb_opportunities.filter(o => o.signal === <span class="str">'STRONG'</span>);
-  <span class="kw">if</span> (!strong.length) <span class="kw">return</span> console.log(<span class="str">'No strong arb opportunities.'</span>);
-
-  <span class="kw">const</span> best = strong[<span class="num">0</span>];
-  console.log(<span class="str">`🎯 ${best.asset}: long ${best.long_venue}, short ${best.short_venue}`</span>);
-  console.log(<span class="str">`   Spread: ${best.spread_bps}bps · APR: ${best.annualized_arb_pct}%`</span>);
-
-  <span class="cmt">// Pay 0.008 USDC — check gas before execution</span>
-  <span class="kw">const</span> { data: gas } = <span class="kw">await</span> (
-    <span class="kw">await</span> fetchWithPayment(`${BASE_URL}/api/gas-tracker`)
-  ).json();
-  console.log(<span class="str">`⛽ Arbitrum gas: ${gas.arbitrum.gas_price_gwei.fast} gwei fast`</span>);
-}
-
-defiScout();
-<span class="cmt">// Total cost per run: 0.001 + 0.008 = 0.009 USDC (~$0.009)</span>
-</pre>
+console.log(<span class="str">'Indicative spread:'</span>, funding.arb_opportunities[<span class="num">0</span>]?.spread_bps ?? <span class="str">'none'</span>);
+console.log(<span class="str">'Arbitrum gas:'</span>, gas.data.arbitrum?.gas_price_gwei.normal ?? <span class="str">'unavailable'</span>);
+<span class="cmt">// Fees and basis risk are excluded. Total API charge: 0.009 USDC.</span></pre>
     </div>
   </section>
 
@@ -1139,6 +1068,9 @@ defiScout();
       <div class="footer-links">
         <a href="/health">Health</a>
         <a href="/api/endpoints">Catalog (JSON)</a>
+        <a href="/.well-known/x402">Agent discovery</a>
+        <a href="/openapi.json">OpenAPI</a>
+        <a href="https://registry.modelcontextprotocol.io/?q=io.github.fernsugi%2Fx402-api" target="_blank" rel="noopener">MCP Registry ↗</a>
         <a href="/.well-known/agent-registration.json">ERC-8004</a>
         <a href="https://basescan.org/nft/0x8004A169FB4a3325136EB29fA0ceB6D2e539a432/18763" target="_blank" rel="noopener">BaseScan ↗</a>
         <a href="https://github.com/coinbase/x402" target="_blank" rel="noopener">x402 Spec ↗</a>
@@ -1221,16 +1153,29 @@ function fmtChg(n) {
   return { text: (n >= 0 ? '+' : '') + n.toFixed(2) + '%', cls: n >= 0 ? 'up' : 'dn' };
 }
 
-/* ── Live price fetch (CoinGecko free API for landing page) ──────── */
+/* ── Public live price preview ──────── */
 async function loadPrices() {
   try {
     const ids = 'bitcoin,ethereum,solana,sui,hyperliquid,chainlink';
-    const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
-    const raw = await r.json();
-
     const map = {};
-    for (const [id, d] of Object.entries(raw)) {
-      map[id] = { id, price_usd: d.usd, change_24h_pct: d.usd_24h_change };
+    try {
+      const r = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`);
+      if (!r.ok) throw new Error(`CoinGecko ${r.status}`);
+      const raw = await r.json();
+      if (!raw.bitcoin?.usd || !raw.ethereum?.usd || !raw.solana?.usd) {
+        throw new Error('CoinGecko returned incomplete preview');
+      }
+      for (const [id, d] of Object.entries(raw)) {
+        map[id] = { id, price_usd: d.usd, change_24h_pct: d.usd_24h_change };
+      }
+    } catch {
+      const r = await fetch('https://api.coinlore.net/api/tickers/?start=0&limit=100');
+      if (!r.ok) throw new Error(`CoinLore ${r.status}`);
+      const raw = await r.json();
+      for (const d of raw.data || []) {
+        map[d.nameid] = { id: d.nameid, price_usd: Number(d.price_usd),
+          change_24h_pct: Number(d.percent_change_24h) };
+      }
     }
 
     function setPrice(btcId, valId, chgId, val2Id, chg2Id) {

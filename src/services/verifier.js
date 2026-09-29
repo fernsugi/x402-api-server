@@ -35,6 +35,7 @@ const {
   FACILITATOR_URL,
   FACILITATOR_API_KEY,
   SETTLEMENT_PRIVATE_KEY,
+  TXHASH_ENABLED,
   getSettlementMode,
 } = require('../payment-config');
 
@@ -216,6 +217,28 @@ function buildFacilitatorRequest(signature, auth, config) {
   };
 }
 
+async function confirmFacilitatorTransfer(txHash, auth, config) {
+  if (!/^0x[0-9a-fA-F]{64}$/.test(txHash || '')) return false;
+  const receipt = await getProvider().getTransactionReceipt(txHash);
+  if (!receipt || receipt.status !== 1) return false;
+  const transfer = new ethers.Interface([
+    'event Transfer(address indexed from, address indexed to, uint256 value)',
+  ]);
+  const matchingTransfer = receipt.logs.some(log => {
+    if (log.address.toLowerCase() !== USDC_ADDRESS.toLowerCase()) return false;
+    try {
+      const event = transfer.parseLog({ topics: log.topics, data: log.data });
+      return event?.name === 'Transfer' &&
+        event.args.from.toLowerCase() === auth.from.toLowerCase() &&
+        event.args.to.toLowerCase() === config.payTo.toLowerCase() &&
+        event.args.value >= BigInt(config.maxAmountRequired);
+    } catch { return false; }
+  });
+  if (!matchingTransfer) return false;
+  const usdc = new ethers.Contract(USDC_ADDRESS, USDC_ABI, getProvider());
+  return await usdc.authorizationState(auth.from, auth.nonce) === true;
+}
+
 // ── Facilitator settlement stub ──────────────────────────────────────────────
 /**
  * @param {string} signature  - EIP-712 signature
@@ -296,12 +319,10 @@ async function submitSettlement(signature, auth, config) {
         data.receipt?.transactionHash ||
         data.receipt?.hash ||
         null;
-      const settled = data.settled === true || data.success === true || Boolean(txHash);
-
-      if (!settled) {
+      if (!txHash || !(await confirmFacilitatorTransfer(txHash, auth, config))) {
         return {
           settled: false,
-          reason: data.reason || data.message || 'Facilitator did not confirm settlement',
+          reason: data.reason || data.message || 'Facilitator transfer is not confirmed on Base',
         };
       }
 
@@ -375,6 +396,7 @@ async function verifyPayment(paymentHeader, config) {
   // Support both facilitator-style (signature + payload.authorization) and
   // simple tx-hash style (txHash field) for flexibility
   if (decoded.txHash) {
+    if (!TXHASH_ENABLED) return { valid: false, reason: 'Legacy txHash proof is disabled; use EIP-3009 authorization' };
     return await verifyByTxHash(decoded, config);
   }
 
