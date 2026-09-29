@@ -1,6 +1,6 @@
 {
   "name": "x402-api-server",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "x402 protocol demo API server — pay-per-call crypto/DeFi data endpoints using HTTP 402 + USDC on Base",
   "main": "src/index.js",
   "files": [
@@ -19,7 +19,8 @@
   "scripts": {
     "start": "node src/index.js",
     "dev": "node --watch src/index.js",
-    "test:eip3009": "node scripts/test-eip3009.mjs"
+    "test:eip3009": "node scripts/test-eip3009.mjs",
+    "test": "node --test test/*.test.js"
   },
   "keywords": [
     "x402",
@@ -38,11 +39,10 @@
     "cors": "^2.8.5",
     "dotenv": "^17.3.1",
     "ethers": "^6.16.0",
-    "express": "^4.21.2",
+    "express": "^4.22.3",
     "morgan": "^1.10.0"
   },
   "devDependencies": {
-    "viem": "^2.47.6",
-    "x402-fetch": "^1.1.0"
+    "viem": "^2.47.6"
   }
 }

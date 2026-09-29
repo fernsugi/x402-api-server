@@ -13,7 +13,7 @@
 'use strict';
 
 const { verifyPayment } = require('../services/verifier');
-const { BAZAAR_SCHEMAS } = require('../bazaar-schemas');
+const { BAZAAR_SCHEMAS, v1OutputSchemaFor } = require('../bazaar-schemas');
 const {
   FACILITATOR_URL,
   getSettlementMode,
@@ -71,8 +71,7 @@ function requirePayment(config) {
             resource: `${req.protocol}://${req.get('host')}${resource}`,
             description,
             mimeType: 'application/json',
-            // v1 output schema field (deprecated but readable by older clients)
-            outputSchema: bazaarExtension?.bazaar?.info?.output || null,
+            outputSchema: v1OutputSchemaFor(resource),
             extra: {
               name: 'USD Coin',
               version: '2',
@@ -84,8 +83,8 @@ function requirePayment(config) {
             },
           },
         ],
-        // v2-compatible Bazaar discovery extension — agents read this directly
-        // Indexed by Coinbase facilitator when mainnet support is added
+        // Supplemental v2-shaped metadata for clients that understand it.
+        // V1 Bazaar indexing uses accepts[].outputSchema above.
         extensions: bazaarExtension ? { bazaar: bazaarExtension.bazaar } : {},
       });
     }
@@ -133,6 +132,18 @@ function requirePayment(config) {
         payer: result.payer,
         mock: result.mock || false,
       }));
+
+      // One structured event per settled call lets the operator measure paid
+      // demand and revenue by route without logging a payer wallet or key.
+      if (result.settled && !result.mock) {
+        console.info(JSON.stringify({
+          event: 'x402_payment_settled',
+          route: resource,
+          amount_micro_usdc: String(result.amount || maxAmountRequired),
+          tx_hash: result.txHash,
+          request_id: req.requestId,
+        }));
+      }
 
       next();
     } catch (err) {

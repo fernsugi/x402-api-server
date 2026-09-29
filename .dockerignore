@@ -1,0 +1,11 @@
+.git
+.env*
+**/node_modules
+**/dist
+elizaos-plugin
+data
+scripts
+test
+*.md
+*.log
+.DS_Store

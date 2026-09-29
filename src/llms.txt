@@ -19,46 +19,48 @@ BTC, ETH, SOL prices + top 5 movers/losers by 24h change. 60s cache.
 Gas prices on Ethereum, Base, Polygon, Arbitrum. Slow/normal/fast tiers + USD estimates.
 
 ### GET /api/dex-quotes — 0.002 USDC
-Swap quotes across Uniswap V3, SushiSwap, 1inch. Params: ?from=ETH&to=USDC&amount=1
+One live ParaSwap aggregate route; no independent venue comparison. Params: ?from=ETH&to=USDC&amount=1
 
 ### GET /api/token-scanner — 0.003 USDC
-Token security: contract verification, honeypot check, liquidity lock, mint function, risk score. Params: ?token=PEPE
+GoPlus ERC-20 security flags and a disclosed heuristic score; missing metrics are null. Params: ?token=PEPE
 
 ### GET /api/whale-tracker — 0.005 USDC
-Large transfers, holder concentration, Gini coefficient. Params: ?token=ETH
+GoPlus sample of top holders and supply share; transfer history and Gini unavailable. Params: ?token=ETH
 
 ### GET /api/yield-scanner — 0.005 USDC
-Top DeFi yields: Aave, Compound, Morpho, Lido, Pendle, Ethena. Filter by chain, asset, TVL.
+DefiLlama pool APY and TVL; no safety rating. Filter by chain, asset, TVL.
 
 ### GET /api/funding-rates — 0.008 USDC
-Perp funding rates on Hyperliquid, dYdX v4, Aevo, GMX, Drift, Vertex + arb spread ranking. Params: ?asset=ETH
+Hourly Hyperliquid and dYdX v4 rates with indicative spreads. Params: ?asset=ETH
 
 ### GET /api/wallet-profiler — 0.008 USDC
-Wallet portfolio: holdings, DeFi positions, activity metrics, risk classification. Params: ?address=0x...
+Blockscout priced balances or limited public RPC fallback; coverage may be partial. Params: ?address=0x...
 
 ## Free Endpoints
 - GET /health — Server health check
 - GET /api/endpoints — Machine-readable endpoint catalog (JSON)
 - GET /api/bazaar — Bazaar discovery schemas
+- GET /.well-known/x402 — Public discovery manifest
+- GET /openapi.json — OpenAPI 3.1 description of all paid routes
 - GET /.well-known/agent-registration.json — ERC-8004 registration
 
 ## Payment Flow
 1. Agent calls endpoint without payment → receives 402 with payment instructions
 2. Agent pays on Base and retries with X-Payment header containing Base64 JSON proof
 3. Supported proof formats in this repo:
-   - txHash proof: {"txHash":"0x...","payer":"0x..."}
-   - EIP-3009 proof: Base64 JSON containing a signature plus payload.authorization
+   - EIP-3009 authorization (when settlement is configured)
+   - Legacy txHash proof only when X402_ENABLE_TXHASH=true and X402_DATA_DIR is durable and shared
 4. Server verifies and settles payment before returning data
 
 ## Notes
-- txHash proof works without extra settlement credentials
+- Legacy txHash proof is disabled by default to prevent replay after ephemeral storage loss
 - EIP-3009 settlement requires either X402_SETTLEMENT_PRIVATE_KEY or X402_FACILITATOR_URL
 
 ## Integrations
 - MCP Server: @x402-api/mcp-server
 - MCP Server Repo: https://github.com/fernsugi/x402-api-mcp-server
 - ElizaOS Plugin: @x402-api/elizaos-plugin
-- x402-fetch (Coinbase): automatic 402 → pay → retry
+- @x402-api/mcp-server and @x402-api/elizaos-plugin: Base EIP-3009 automatic payment clients
 
 ## Links
 - Landing page: https://x402-api.fly.dev

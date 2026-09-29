@@ -10,8 +10,17 @@
     },
     {
       "name": "x402",
-      "endpoint": "https://x402-api.fly.dev/",
+      "endpoint": "https://x402-api.fly.dev/api/price-feed",
       "version": "1"
+    },
+    {
+      "name": "OpenAPI",
+      "endpoint": "https://x402-api.fly.dev/openapi.json",
+      "version": "3.1.0"
+    },
+    {
+      "name": "MCPRegistry",
+      "endpoint": "https://registry.modelcontextprotocol.io/?q=io.github.fernsugi%2Fx402-api"
     }
   ],
   "x402Support": true,

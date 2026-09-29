@@ -7,13 +7,13 @@
  * Endpoints:
  *   GET /                    → Landing page
  *   GET /api/price-feed      → Aggregated crypto prices (0.001 USDC)
- *   GET /api/whale-tracker   → Token holder concentration (0.005 USDC)
- *   GET /api/funding-rates   → Perp funding rate arb scanner (0.008 USDC)
+ *   GET /api/whale-tracker   → Observed top-holder concentration (0.005 USDC)
+ *   GET /api/funding-rates   → Indicative perp funding spreads (0.008 USDC)
  *   GET /api/gas-tracker     → Multi-chain gas prices (0.001 USDC)
- *   GET /api/token-scanner   → Token security & risk analysis (0.003 USDC)
- *   GET /api/dex-quotes      → DEX swap quote comparison (0.002 USDC)
+ *   GET /api/token-scanner   → GoPlus security signals (0.003 USDC)
+ *   GET /api/dex-quotes      → ParaSwap route quote (0.002 USDC)
  *   GET /api/yield-scanner   → Top DeFi yields (0.005 USDC)
- *   GET /api/wallet-profiler → Wallet portfolio analysis (0.008 USDC)
+ *   GET /api/wallet-profiler → Observed wallet balances (0.008 USDC)
  *   GET /health              → Health check (free)
  *   GET /api/endpoints       → Machine-readable endpoint catalog (free)
  */
@@ -101,8 +101,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-app.get('/api/endpoints', (req, res) => {
-  res.json({
+function endpointCatalog() {
+  return {
     x402Version: 1,
     server: 'x402-api-server',
     description: 'Pay-per-call crypto/DeFi data API using the x402 payment protocol',
@@ -116,14 +116,14 @@ app.get('/api/endpoints', (req, res) => {
       {
         path: '/api/price-feed',
         method: 'GET',
-        description: 'Aggregated crypto price feed: BTC, ETH, SOL + top 24h movers. Live data from CoinGecko.',
+        description: 'BTC, ETH, SOL prices and selected 24h movers from CoinGecko or CoinLore fallback.',
         price_usdc: 0.001,
         price_micro: 1000,
       },
       {
         path: '/api/whale-tracker',
         method: 'GET',
-        description: 'Token holder concentration: whale distribution, Gini coefficient, large transfer alerts.',
+        description: 'GoPlus top-holder sample and reported supply concentration; no transfer history or Gini.',
         price_usdc: 0.005,
         price_micro: 5000,
         params: [
@@ -134,7 +134,7 @@ app.get('/api/endpoints', (req, res) => {
       {
         path: '/api/funding-rates',
         method: 'GET',
-        description: 'Perp funding rates across Hyperliquid, dYdX v4, Aevo, GMX, Drift, Vertex + arb ranking.',
+        description: 'Hourly Hyperliquid and dYdX v4 funding rates with indicative spread comparison.',
         price_usdc: 0.008,
         price_micro: 8000,
         params: [
@@ -152,7 +152,7 @@ app.get('/api/endpoints', (req, res) => {
       {
         path: '/api/token-scanner',
         method: 'GET',
-        description: 'Token security & risk analysis: contract verification, holder stats, liquidity, rug-pull risk flags.',
+        description: 'GoPlus ERC-20 security flags and disclosed heuristic risk score; unavailable fields are null.',
         price_usdc: 0.003,
         price_micro: 3000,
         params: [
@@ -163,7 +163,7 @@ app.get('/api/endpoints', (req, res) => {
       {
         path: '/api/dex-quotes',
         method: 'GET',
-        description: 'Compare swap quotes across Uniswap, SushiSwap, 1inch with price impact and route optimization.',
+        description: 'One live ParaSwap aggregate route quote; no independent DEX comparison.',
         price_usdc: 0.002,
         price_micro: 2000,
         params: [
@@ -176,7 +176,7 @@ app.get('/api/endpoints', (req, res) => {
       {
         path: '/api/yield-scanner',
         method: 'GET',
-        description: 'Top DeFi yields across Aave, Compound, Morpho, Lido, Pendle, Ethena. Filter by chain, asset, TVL.',
+        description: 'Live DefiLlama pool APYs and TVL, filterable by chain, asset, and TVL.',
         price_usdc: 0.005,
         price_micro: 5000,
         params: [
@@ -189,15 +189,79 @@ app.get('/api/endpoints', (req, res) => {
       {
         path: '/api/wallet-profiler',
         method: 'GET',
-        description: 'Wallet portfolio analysis: holdings, DeFi positions, activity metrics, risk profile.',
+        description: 'Priced wallet balances from Blockscout or limited public RPC fallback; partial coverage disclosed.',
         price_usdc: 0.008,
         price_micro: 8000,
         params: [
-          { name: 'address', default: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045' },
+          { name: 'address', required: true },
           { name: 'chain', default: 'all' },
         ],
       },
     ],
+  };
+}
+
+app.get('/api/endpoints', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.json(endpointCatalog());
+});
+
+// A stable, public discovery document for agents that start from the domain.
+// Bazaar registration itself still requires a facilitator to settle and index
+// a paid request; this manifest does not assert a marketplace listing.
+app.get(['/.well-known/x402', '/.well-known/x402.json'], (req, res) => {
+  const catalog = endpointCatalog();
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.json({
+    name: 'x402-api',
+    description: 'Pay-per-call crypto and DeFi data for AI agents',
+    url: 'https://x402-api.fly.dev',
+    x402Version: catalog.x402Version,
+    network: catalog.network,
+    asset: catalog.asset,
+    payTo: catalog.pay_to,
+    endpoints: catalog.endpoints,
+    openapi: 'https://x402-api.fly.dev/openapi.json',
+    llms: 'https://x402-api.fly.dev/llms.txt',
+    bazaarCatalog: 'https://x402-api.fly.dev/api/bazaar',
+    agentRegistration: 'https://x402-api.fly.dev/.well-known/agent-registration.json',
+    mcp: {
+      registryName: 'io.github.fernsugi/x402-api',
+      npmPackage: '@x402-api/mcp-server',
+    },
+  });
+});
+
+app.get('/openapi.json', (req, res) => {
+  const catalog = endpointCatalog();
+  const paths = Object.fromEntries(catalog.endpoints.map((endpoint) => [endpoint.path, {
+    get: {
+      operationId: endpoint.path.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()),
+      summary: endpoint.description,
+      description: `Price: ${endpoint.price_usdc} USDC per successful call on Base. Request without payment to receive an x402 v1 challenge. Upstream data is checked before payment is requested.`,
+      parameters: (endpoint.params || []).map(param => ({
+        name: param.name,
+        in: 'query',
+        required: Boolean(param.required),
+        schema: {
+          type: typeof param.default === 'number' ? 'number' : 'string',
+          ...(param.default !== undefined ? { default: param.default } : {}),
+        },
+      })),
+      responses: {
+        200: { description: 'Live data returned after payment', content: { 'application/json': { schema: { type: 'object' } } } },
+        402: { description: 'x402 v1 payment challenge, including price and Base USDC payment requirements', content: { 'application/json': { schema: { type: 'object' } } } },
+        400: { description: 'Invalid query parameters' },
+        503: { description: 'Live upstream data unavailable; no payment requested' },
+      },
+    },
+  }]));
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.json({
+    openapi: '3.1.0',
+    info: { title: 'x402-api', version: APP_VERSION, description: 'Eight paid crypto and DeFi data endpoints. HTTP 402 challenges describe USDC payment on Base.' },
+    servers: [{ url: 'https://x402-api.fly.dev' }],
+    paths,
   });
 });
 
@@ -222,7 +286,7 @@ app.get('/api/bazaar', (req, res) => {
       method: 'GET',
       schema,
     })),
-    _note: 'extensions.bazaar schema is included in 402 responses. Current production-ready proof path in this repo is txHash-based.',
+    _note: 'V1 discovery is in accepts[].outputSchema on 402 responses. Facilitator indexing requires a settled request. Production proof support depends on settlement configuration; legacy txHash is opt-in.',
   });
 });
 
@@ -249,19 +313,21 @@ AI agents pay per request in USDC on Base — no API keys, no subscriptions, no 
 ## Endpoints
 All endpoints require USDC payment via the x402 protocol.
 
-GET /api/price-feed      $0.001 USDC  BTC/ETH/SOL prices + top movers/losers (CoinGecko)
+GET /api/price-feed      $0.001 USDC  BTC/ETH/SOL prices + selected movers (CoinGecko/CoinLore)
 GET /api/gas-tracker     $0.001 USDC  Multi-chain gas: ETH, Base, Polygon, Arbitrum
-GET /api/dex-quotes      $0.002 USDC  DEX swap quotes (params: ?from=ETH&to=USDC&amount=1)
+GET /api/dex-quotes      $0.002 USDC  ParaSwap aggregate route (params: ?from=ETH&to=USDC&amount=1)
 GET /api/token-scanner   $0.003 USDC  Token security analysis (params: ?token=PEPE)
-GET /api/whale-tracker   $0.005 USDC  Large transfer alerts + holder concentration (params: ?token=ETH)
+GET /api/whale-tracker   $0.005 USDC  GoPlus top-holder sample (params: ?token=ETH)
 GET /api/yield-scanner   $0.005 USDC  Top DeFi yields across protocols (params: ?chain=ethereum&min_tvl=1000000)
-GET /api/funding-rates   $0.008 USDC  Perp funding rates on Hyperliquid + others (params: ?asset=ETH)
-GET /api/wallet-profiler $0.008 USDC  Wallet portfolio + activity analysis (params: ?address=0x...)
+GET /api/funding-rates   $0.008 USDC  Hyperliquid and dYdX hourly rates and indicative spreads (params: ?asset=ETH)
+GET /api/wallet-profiler $0.008 USDC  Observed priced balances; coverage can be partial (params: ?address=0x...)
 
 ## Free Endpoints
 GET /health                           Server health check
 GET /api/endpoints                    Machine-readable endpoint catalog (JSON)
 GET /api/bazaar                       Bazaar discovery schemas (JSON)
+GET /.well-known/x402                Public agent discovery manifest (JSON)
+GET /openapi.json                    OpenAPI 3.1 description of paid routes
 GET /.well-known/agent-registration.json  ERC-8004 registration file
 
 ## Payment
@@ -271,11 +337,11 @@ Pay-to: ${PAY_TO_ADDRESS}
 Protocol: x402 (402 payment instructions + Base64 payment proof in X-Payment)
 
 ## Current Payment Proofs
-- Production-ready in this repo: on-chain Base USDC transfer proved with X-Payment = Base64 JSON containing txHash + payer
+- Legacy txHash proof is disabled unless X402_ENABLE_TXHASH=true with durable shared X402_DATA_DIR
 ${EIP3009_STATUS_LINE}
 
 ## Integration
-npm: x402-fetch (auto-handles 402 payment flow)
+npm: @x402-api/mcp-server or @x402-api/elizaos-plugin (Base EIP-3009 clients)
 MCP: @x402-api/mcp-server
 ElizaOS: @x402-api/elizaos-plugin
 

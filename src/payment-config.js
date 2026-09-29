@@ -2,8 +2,12 @@
 
 const FACILITATOR_URL = process.env.X402_FACILITATOR_URL || null;
 const FACILITATOR_API_KEY = process.env.X402_FACILITATOR_API_KEY || null;
-const SETTLEMENT_PRIVATE_KEY = process.env.X402_SETTLEMENT_PRIVATE_KEY || process.env.PRIVATE_KEY || null;
+const SETTLEMENT_PRIVATE_KEY = process.env.X402_SETTLEMENT_PRIVATE_KEY || null;
 const RAW_SETTLEMENT_MODE = String(process.env.X402_SETTLEMENT_MODE || 'auto').toLowerCase();
+// A transaction hash can be replayed after an ephemeral disk is replaced. Keep
+// this legacy proof disabled unless the operator explicitly opts in and mounts
+// a durable nonce directory shared by every server instance.
+const TXHASH_ENABLED = process.env.X402_ENABLE_TXHASH === 'true' && Boolean(process.env.X402_DATA_DIR);
 
 function getSettlementMode() {
   switch (RAW_SETTLEMENT_MODE) {
@@ -26,9 +30,10 @@ function isEip3009SettlementConfigured() {
 }
 
 function getSupportedPaymentProofs() {
-  return isEip3009SettlementConfigured()
-    ? ['txHash', 'eip3009_transferWithAuthorization']
-    : ['txHash'];
+  return [
+    ...(TXHASH_ENABLED ? ['txHash'] : []),
+    ...(isEip3009SettlementConfigured() ? ['eip3009_transferWithAuthorization'] : []),
+  ];
 }
 
 function getExperimentalPaymentProofs() {
@@ -41,6 +46,7 @@ module.exports = {
   FACILITATOR_URL,
   FACILITATOR_API_KEY,
   SETTLEMENT_PRIVATE_KEY,
+  TXHASH_ENABLED,
   getSettlementMode,
   isEip3009SettlementConfigured,
   getSupportedPaymentProofs,
