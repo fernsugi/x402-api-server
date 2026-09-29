@@ -18,7 +18,7 @@ export function createPriceFeedAction(config: X402ClientConfig): Action {
     ],
     description:
       'Fetch live crypto prices for BTC, ETH, SOL and top movers by 24h change. ' +
-      'Data sourced from CoinGecko. Costs $0.001 USDC via x402.',
+      'Data sourced from CoinGecko or CoinLore fallback. Costs $0.001 USDC via x402.',
 
     validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
       // Always valid — no required parameters

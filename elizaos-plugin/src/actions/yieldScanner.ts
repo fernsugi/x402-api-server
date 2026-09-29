@@ -11,8 +11,6 @@ interface YieldScannerResponse {
   metadata: Record<string, unknown>;
 }
 
-const RISK_EMOJIS = { low: '🟢', medium: '🟡', high: '🔴' } as const;
-
 export function createYieldScannerAction(config: X402ClientConfig): Action {
   return {
     name: 'SCAN_YIELDS',
@@ -29,8 +27,8 @@ export function createYieldScannerAction(config: X402ClientConfig): Action {
       'DEFI_APY',
     ],
     description:
-      'Find the best DeFi yield opportunities across Aave, Compound, Morpho, Lido, Pendle, Ethena, ' +
-      'Yearn, Convex, and more. Filter by chain, asset, TVL, and risk tier. ' +
+      'Read live DeFi pool APY and TVL from DefiLlama. Filter by chain, asset, and TVL. ' +
+      'APY is historical or provider reported, with no safety rating. ' +
       'Costs $0.005 USDC via x402.',
 
     validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
@@ -75,18 +73,17 @@ export function createYieldScannerAction(config: X402ClientConfig): Action {
 
         const poolLines = pools
           .map((p, i) => {
-            const riskEmoji = RISK_EMOJIS[p.risk_tier];
             const tvlFormatted = p.tvl >= 1e9 ? `$${(p.tvl / 1e9).toFixed(1)}B`
               : p.tvl >= 1e6 ? `$${(p.tvl / 1e6).toFixed(0)}M`
               : `$${(p.tvl / 1e3).toFixed(0)}K`;
-            return `${i + 1}. ${riskEmoji} **${p.protocol}** — ${p.asset} on ${p.chain}: **${p.apy}% APY** (TVL: ${tvlFormatted}, ${p.type})`;
+            return `${i + 1}. **${p.protocol}** — ${p.asset} on ${p.chain}: **${p.apy}% APY** (TVL: ${tvlFormatted})`;
           })
           .join('\n');
 
         const response =
           `## 🌾 Yield Scanner${asset ? ` — ${asset}` : ''}${chain !== 'all' ? ` on ${chain}` : ''}\n\n` +
           `${poolLines}\n\n` +
-          `*🟢 low risk  🟡 medium  🔴 high | ${data.total_results} results • ${data.timestamp}*`;
+          `*Provider reported APY, not guaranteed. No safety rating. ${data.total_results} results • ${data.timestamp}*`;
 
         if (callback) {
           await callback({ text: response, source: message.content.source });
@@ -103,7 +100,7 @@ export function createYieldScannerAction(config: X402ClientConfig): Action {
     examples: [
       [
         { name: '{{user}}', content: { text: 'What are the best DeFi yields right now?' } },
-        { name: '{{agent}}', content: { text: '## 🌾 Yield Scanner\n\n1. 🔴 Camelot — GRAIL/ETH on arbitrum: 28.3% APY\n2. 🔴 Aerodrome — USDC/ETH on base: 22.1% APY\n3. 🔴 Ethena — sUSDe on ethereum: 18.5% APY', actions: ['SCAN_YIELDS'] } },
+        { name: '{{agent}}', content: { text: 'Fetching live pool APYs and TVL from DefiLlama.', actions: ['SCAN_YIELDS'] } },
       ],
       [
         { name: '{{user}}', content: { text: 'Find safe USDC yields on Base' } },

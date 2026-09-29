@@ -17,8 +17,8 @@ export function createDexQuotesAction(config: X402ClientConfig): Action {
       'DEX_COMPARISON',
     ],
     description:
-      'Get DEX swap quotes for any token pair across Uniswap V3, SushiSwap, and 1inch. ' +
-      'Compares rates, price impact, fees, and gas costs. ' +
+      'Get one live ParaSwap aggregate route for a supported token pair. ' +
+      'Reports expected output and route components; no independent venue comparison. ' +
       'Query with from/to tokens, amount, and chain. Costs $0.002 USDC via x402.',
 
     validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
@@ -56,24 +56,14 @@ export function createDexQuotesAction(config: X402ClientConfig): Action {
 
         const q = data.data;
         const best = q.quotes[0];
-
-        const quoteLines = q.quotes
-          .map((quote, i) => {
-            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
-            return (
-              `${medal} **${quote.dex_name}**: ${quote.output_amount} ${to} ` +
-              `(impact: ${quote.price_impact_pct}%, gas: $${quote.estimated_gas_usd})`
-            );
-          })
-          .join('\n');
+        if (!best) throw new Error('No route returned');
 
         const response =
-          `## 🔄 DEX Quotes: ${amount} ${from} → ${to} on ${chain}\n\n` +
-          `${quoteLines}\n\n` +
-          `**Best:** ${q.recommendation.dex} — ${q.recommendation.reason}\n` +
-          `**Output:** ${best.output_amount} ${to} ($${(best.output_amount * (q.input_value_usd / amount)).toFixed(2)})\n` +
-          `**Total cost:** $${q.recommendation.total_cost_usd} (fees + gas)\n\n` +
-          `*Quotes valid for ${best.expires_in_seconds}s • ${data.timestamp}*`;
+          `## 🔄 ParaSwap quote: ${amount} ${from} → ${to} on ${chain}\n\n` +
+          `**Expected output:** ${best.output_amount} ${to}\n` +
+          `**Route components:** ${best.route.join(', ') || 'not reported'}\n` +
+          `**Estimated gas:** ${best.estimated_gas_usd === null ? 'not reported' : `$${best.estimated_gas_usd}`}\n\n` +
+          `*${q.recommendation.reason} Quote can change before execution. ${data.timestamp}*`;
 
         if (callback) {
           await callback({ text: response, source: message.content.source });
@@ -90,11 +80,11 @@ export function createDexQuotesAction(config: X402ClientConfig): Action {
     examples: [
       [
         { name: '{{user}}', content: { text: 'What\'s the best rate to swap 1 ETH to USDC?' } },
-        { name: '{{agent}}', content: { text: '## 🔄 DEX Quotes: 1 ETH → USDC on ethereum\n\n🥇 1inch Aggregator: 2749.5 USDC\n🥈 Uniswap V3: 2747.2 USDC\n🥉 SushiSwap: 2744.8 USDC', actions: ['GET_DEX_QUOTES'] } },
+        { name: '{{agent}}', content: { text: 'Fetching a live ParaSwap route for ETH → USDC.', actions: ['GET_DEX_QUOTES'] } },
       ],
       [
         { name: '{{user}}', content: { text: 'Compare DEX rates for ETH/USDC on Base' } },
-        { name: '{{agent}}', content: { text: 'Getting swap quotes across Uniswap, SushiSwap, and 1inch on Base...', actions: ['GET_DEX_QUOTES'] } },
+        { name: '{{agent}}', content: { text: 'Getting a ParaSwap aggregate quote on Base...', actions: ['GET_DEX_QUOTES'] } },
       ],
       [
         { name: '{{user}}', content: { text: 'How much USDC do I get for 0.5 BTC?' } },

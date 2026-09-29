@@ -53,9 +53,9 @@ export interface PriceFeedResponse extends ApiResponse<PriceFeedData> {
 // ──────────────────────────────────────────────────────────────
 
 export interface GasTier {
-  slow: number;
+  slow: number | null;
   normal: number;
-  fast: number;
+  fast: number | null;
 }
 
 export interface ChainGasData {
@@ -69,13 +69,12 @@ export interface ChainGasData {
     swap: GasTier;
     nft_mint: GasTier;
   };
+  tier_method: string;
+  native_token_price_usd: number | null;
 }
 
 export interface GasTrackerData {
-  ethereum: ChainGasData;
-  base: ChainGasData;
-  polygon: ChainGasData;
-  arbitrum: ChainGasData;
+  [chain: string]: ChainGasData;
 }
 
 export interface GasTrackerResponse extends ApiResponse<GasTrackerData> {
@@ -94,30 +93,30 @@ export interface DexQuote {
   input_amount: number;
   output_amount: number;
   effective_rate: number;
-  price_impact_pct: number;
-  fee_bps: number;
-  fee_usd: number;
-  estimated_gas_usd: number;
+  price_impact_pct: number | null;
+  fee_bps: number | null;
+  fee_usd: number | null;
+  estimated_gas_usd: number | null;
   route: string[];
-  min_output: number;
-  expires_in_seconds: number;
+  min_output: number | null;
+  expires_in_seconds: number | null;
 }
 
 export interface DexQuotesData {
   pair: string;
   chain: string;
   input_amount: number;
-  input_value_usd: number;
+  input_value_usd: number | null;
   base_rate: number;
   best_dex: string;
   best_output: number;
-  savings_vs_worst: number;
+  savings_vs_worst: number | null;
   quotes: DexQuote[];
   recommendation: {
     dex: string;
     reason: string;
     output: number;
-    total_cost_usd: number;
+    total_cost_usd: number | null;
   };
 }
 
@@ -134,36 +133,37 @@ export interface DexQuotesQuery {
 
 export interface TokenScanData {
   address: string;
-  name: string;
-  symbol: string;
-  decimals: number;
+  name: string | null;
+  symbol: string | null;
   chain: string;
-  deployer: string;
-  deploy_date: string;
-  total_supply: number;
-  holder_count: number;
-  is_verified: boolean;
-  has_proxy: boolean;
-  has_mint_function: boolean;
-  liquidity_locked: boolean;
-  honeypot_risk: boolean;
-  buy_tax: number;
-  sell_tax: number;
-  liquidity_usd: number;
-  market_cap_usd: number;
-  price_usd: number;
-  risk_score: number;
-  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  deployer: string | null;
+  deploy_date: string | null;
+  total_supply: string | null;
+  holder_count: number | null;
+  is_verified: boolean | null;
+  has_proxy: boolean | null;
+  has_mint_function: boolean | null;
+  liquidity_locked: boolean | null;
+  honeypot_risk: boolean | null;
+  buy_tax: number | null;
+  sell_tax: number | null;
+  liquidity_usd: number | null;
+  market_cap_usd: number | null;
+  price_usd: number | null;
+  risk_score: number | null;
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL' | 'UNKNOWN';
+  risk_score_basis: string;
   risk_flags: {
-    is_verified: boolean;
-    has_proxy: boolean;
-    has_mint_function: boolean;
-    liquidity_locked: boolean;
-    honeypot_risk: boolean;
-    high_buy_tax: boolean;
-    high_sell_tax: boolean;
+    is_verified: boolean | null;
+    has_proxy: boolean | null;
+    has_mint_function: boolean | null;
+    liquidity_locked: boolean | null;
+    honeypot_risk: boolean | null;
+    cannot_buy: boolean | null;
+    high_buy_tax: boolean | null;
+    high_sell_tax: boolean | null;
   };
-  age_days: number;
+  age_days: number | null;
 }
 
 export interface TokenScanQuery {
@@ -178,12 +178,12 @@ export interface TokenScanQuery {
 export interface WhaleHolder {
   rank: number;
   address: string;
-  label: string;
+  label: string | null;
   wallet_type: string;
-  balance: number;
-  percentage: number;
-  last_active: string;
+  balance: string | null;
+  percentage: number | null;
   is_contract: boolean;
+  is_locked: boolean;
 }
 
 export interface WhaleTransfer {
@@ -199,15 +199,16 @@ export interface WhaleTransfer {
 export interface WhaleTrackerData {
   token: string;
   chain: string;
-  total_supply: number;
-  circulating_supply: number;
-  holder_count: number;
+  token_address: string;
+  total_supply: string | null;
+  circulating_supply: number | null;
+  holder_count: number | null;
   concentration_metrics: {
-    top_1_pct: number;
-    top_10_pct: number;
-    top_20_pct: number;
-    gini_coefficient: number;
-    herfindahl_index: number;
+    top_1_pct: number | null;
+    top_10_pct: number | null;
+    top_20_pct: number | null;
+    gini_coefficient: number | null;
+    herfindahl_index: number | null;
   };
   distribution_buckets: Array<{
     label: string;
@@ -216,6 +217,7 @@ export interface WhaleTrackerData {
   }>;
   top_holders: WhaleHolder[];
   recent_large_transfers: WhaleTransfer[];
+  coverage: { holders_returned: number; gini_available: boolean; recent_transfers_available: boolean; note: string };
 }
 
 export interface WhaleTrackerQuery {
@@ -228,14 +230,17 @@ export interface WhaleTrackerQuery {
 // ──────────────────────────────────────────────────────────────
 
 export interface YieldPool {
+  pool_id: string;
   protocol: string;
   asset: string;
   chain: string;
   apy: number;
   tvl: number;
-  risk_tier: 'low' | 'medium' | 'high';
-  type: string;
-  updated_at: string;
+  apy_base: number | null;
+  apy_reward: number | null;
+  stablecoin: boolean | null;
+  il_risk: string | null;
+  exposure: string | null;
 }
 
 export interface YieldScannerQuery {
@@ -251,11 +256,10 @@ export interface YieldScannerQuery {
 
 export interface FundingRateEntry {
   funding_rate: number;
+  funding_interval_hours: number;
   annualized_pct: number;
-  predicted_rate: number;
-  open_interest_usd: number;
-  next_funding_in_ms: number;
-  last_updated: string;
+  open_interest_usd: number | null;
+  rate_kind: string;
 }
 
 export interface ArbOpportunity {
@@ -266,7 +270,6 @@ export interface ArbOpportunity {
   short_rate: number;
   spread_bps: number;
   annualized_arb_pct: number;
-  signal: 'STRONG' | 'MODERATE' | 'WEAK';
   note: string;
 }
 
@@ -287,9 +290,10 @@ export interface FundingRatesQuery {
 
 export interface WalletHolding {
   token: string;
+  token_address: string | null;
   chain: string;
   balance: number;
-  price_usd: number;
+  price_usd: number | null;
   value_usd: number;
   portfolio_pct: number;
 }
@@ -306,35 +310,37 @@ export interface DefiPosition {
 export interface WalletProfileData {
   address: string;
   label: string | null;
-  wallet_type: string;
+  wallet_type: string | null;
   chains_active: string[];
   total_value_usd: number;
-  defi_value_usd: number;
+  defi_value_usd: number | null;
   portfolio: {
     top_holdings: WalletHolding[];
+    unpriced_holdings: Array<{ token: string; token_address: string | null; chain: string; balance: number; price_usd: number | null; value_usd: number | null; reputation: string | null }>;
     allocation: {
-      native_tokens_pct: number;
-      stablecoins_pct: number;
-      defi_tokens_pct: number;
+      native_tokens_pct: number | null;
+      stablecoins_pct: number | null;
+      defi_tokens_pct: number | null;
     };
   };
   defi_positions: DefiPosition[];
   activity: {
-    total_transactions: number;
-    first_seen: string;
-    last_active: string;
-    age_days: number;
-    avg_tx_per_day: number;
-    nft_count: number;
+    total_transactions: number | null;
+    first_seen: string | null;
+    last_active: string | null;
+    age_days: number | null;
+    avg_tx_per_day: number | null;
+    nft_count: number | null;
   };
   risk_profile: {
-    classification: 'conservative' | 'moderate' | 'aggressive';
-    stablecoin_ratio: number;
-    diversification_score: number;
-    defi_exposure_pct: number;
-    is_contract: boolean;
-    is_multisig: boolean;
+    classification: 'conservative' | 'moderate' | 'aggressive' | null;
+    stablecoin_ratio: number | null;
+    diversification_score: number | null;
+    defi_exposure_pct: number | null;
+    is_contract: boolean | null;
+    is_multisig: boolean | null;
   };
+  coverage: { available_chains: string[]; unavailable_chains: string[]; balance_sources: Record<string, string>; priced_holdings: number; unpriced_or_untrusted_holdings: number; valuation_is_partial: boolean; defi_positions_available: boolean; note: string };
 }
 
 export interface WalletProfilerQuery {

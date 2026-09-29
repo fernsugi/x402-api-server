@@ -14,9 +14,9 @@
  *
  * ## Setup Options
  *
- * ### Option A: x402-fetch (Recommended for autonomous agents)
- * Install x402-fetch and configure your wallet private key.
- * The client will auto-handle the 402 flow transparently.
+ * ### Option A: Automatic EIP-3009 payment
+ * Install viem and configure your wallet private key.
+ * The client signs the API's Base USDC 402 challenge, within a per-call cap.
  *
  * ### Option B: Pre-authorized fetch
  * If you have a pre-authorized session token from the x402 facilitator.
@@ -25,7 +25,10 @@
  * Just make the request — you'll get the 402 details to handle manually.
  */
 
+import { randomBytes } from 'node:crypto';
+
 export const X402_API_BASE_URL = 'https://x402-api.fly.dev';
+const BASE_USDC = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
 
 export interface X402ClientConfig {
   /**
@@ -37,7 +40,7 @@ export interface X402ClientConfig {
   /**
    * Wallet private key for automatic x402 payment handling.
    * Required for autonomous payment. Keep this in your .env file!
-   * Used with x402-fetch to auto-pay 402 responses.
+   * Used with viem to sign EIP-3009 authorizations for Base USDC.
    */
   walletPrivateKey?: string;
 
@@ -51,59 +54,89 @@ export interface X402ClientConfig {
    * @default 30000
    */
   timeoutMs?: number;
+  /** Upper bound for one automatic API payment. Defaults to 0.01 USDC. */
+  maxPerCallUsd?: number;
 }
 
 export type FetchWithX402 = (url: string | URL, init?: RequestInit) => Promise<Response>;
 
-let cachedFetch: FetchWithX402 | null = null;
+// A single process can host multiple agents with different wallets. Cache per
+// config object so one agent cannot accidentally reuse another agent's signer.
+const fetchCache = new WeakMap<X402ClientConfig, { walletPrivateKey: string; fetch: FetchWithX402 }>();
 
 /**
  * Get a fetch function that handles x402 payments.
  *
- * If x402-fetch is installed and a wallet private key is provided,
+ * If viem is installed and a wallet private key is provided,
  * returns an auto-paying fetch. Otherwise returns standard fetch.
  */
 async function getX402Fetch(config: X402ClientConfig): Promise<FetchWithX402> {
-  if (cachedFetch) return cachedFetch;
+  const cached = fetchCache.get(config);
+  if (cached && cached.walletPrivateKey === config.walletPrivateKey) return cached.fetch;
+  if (!config.walletPrivateKey) return fetch as FetchWithX402;
 
-  if (config.walletPrivateKey) {
-    try {
-      // Try to load x402-fetch for automatic payment handling.
-      // Using dynamic require via Function to avoid TypeScript's static analysis
-      // of optional peer dependencies (x402-fetch, viem) which may not be installed.
-      const requireDynamic = new Function('m', 'return import(m)') as
-        (mod: string) => Promise<Record<string, unknown>>;
+  try {
+    const dynamicImport = new Function('m', 'return import(m)') as
+      (mod: string) => Promise<Record<string, unknown>>;
+    const accounts = await dynamicImport('viem/accounts');
+    const privateKeyToAccount = accounts['privateKeyToAccount'] as
+      (key: `0x${string}`) => {
+        address: string;
+        signTypedData: (data: unknown) => Promise<string>;
+      };
+    const account = privateKeyToAccount(config.walletPrivateKey as `0x${string}`);
+    const cap = config.maxPerCallUsd ?? 0.01;
+    if (!Number.isFinite(cap) || cap <= 0) throw new Error('Invalid maxPerCallUsd');
 
-      const x402Module = await requireDynamic('x402-fetch').catch(() => null);
-      if (x402Module?.wrapFetchWithPayment) {
-        const viemModule = await requireDynamic('viem');
-        const viemAccounts = await requireDynamic('viem/accounts');
-        const viemChains = await requireDynamic('viem/chains');
-
-        const privateKeyToAccount = viemAccounts['privateKeyToAccount'] as
-          (key: `0x${string}`) => { address: string };
-        const createWalletClient = viemModule['createWalletClient'] as
-          (opts: unknown) => unknown;
-        const http = viemModule['http'] as () => unknown;
-        const base = viemChains['base'];
-
-        const account = privateKeyToAccount(config.walletPrivateKey as `0x${string}`);
-        const walletClient = createWalletClient({ account, chain: base, transport: http() });
-
-        const wrapFetch = x402Module['wrapFetchWithPayment'] as
-          (fetchFn: typeof fetch, signer: unknown) => FetchWithX402;
-        cachedFetch = wrapFetch(fetch, walletClient);
-        console.log('[x402-plugin] Using x402-fetch with wallet:', account.address);
-        return cachedFetch!;
+    const payingFetch: FetchWithX402 = async (url, init) => {
+      const first = await fetch(url, init);
+      if (first.status !== 402) return first;
+      const challenge = await first.clone().json() as {
+        accepts?: Array<{ network: string; asset: string; payTo: string;
+          maxAmountRequired: string; extra?: { supportedProofs?: string[] } }>;
+      };
+      const offer = challenge.accepts?.find(item => item.network === 'base' &&
+        item.asset?.toLowerCase() === BASE_USDC.toLowerCase());
+      if (!offer?.extra?.supportedProofs?.includes('eip3009_transferWithAuthorization')) return first;
+      if (!/^0x[0-9a-fA-F]{40}$/.test(offer.payTo)) throw new Error('Invalid payment recipient');
+      const value = BigInt(offer.maxAmountRequired);
+      if (value <= 0n || value > BigInt(Math.floor(cap * 1_000_000))) {
+        throw new Error(`Payment exceeds per-call cap of ${cap} USDC`);
       }
-    } catch {
-      // x402-fetch or viem not installed, fall through to standard fetch
-    }
+      const now = Math.floor(Date.now() / 1000);
+      const authorization = {
+        from: account.address,
+        to: offer.payTo,
+        value,
+        validAfter: 0n,
+        validBefore: BigInt(now + 60),
+        nonce: `0x${randomBytes(32).toString('hex')}`,
+      };
+      const signature = await account.signTypedData({
+        domain: { name: 'USD Coin', version: '2', chainId: 8453, verifyingContract: BASE_USDC },
+        types: { TransferWithAuthorization: [
+          { name: 'from', type: 'address' }, { name: 'to', type: 'address' },
+          { name: 'value', type: 'uint256' }, { name: 'validAfter', type: 'uint256' },
+          { name: 'validBefore', type: 'uint256' }, { name: 'nonce', type: 'bytes32' },
+        ] },
+        primaryType: 'TransferWithAuthorization',
+        message: authorization,
+      });
+      const payment = Buffer.from(JSON.stringify({ signature, payload: { authorization: {
+        ...authorization,
+        value: value.toString(),
+        validAfter: authorization.validAfter.toString(),
+        validBefore: authorization.validBefore.toString(),
+      } } })).toString('base64');
+      const headers = new Headers(init?.headers);
+      headers.set('X-Payment', payment);
+      return fetch(url, { ...init, headers });
+    };
+    fetchCache.set(config, { walletPrivateKey: config.walletPrivateKey, fetch: payingFetch });
+    return payingFetch;
+  } catch (error) {
+    throw new Error(`Automatic payment setup failed: ${(error as Error).message}. Install viem and check the wallet key.`);
   }
-
-  // Standard fetch — will return 402 if payment not configured
-  cachedFetch = fetch as FetchWithX402;
-  return cachedFetch;
 }
 
 /**
@@ -145,8 +178,8 @@ export async function x402ApiRequest<T>(
     });
 
     if (response.status === 402) {
-      // Payment required — x402-fetch should have handled this automatically
-      // If we reach here, it means x402-fetch is not configured
+      // Payment required — the payment helper should have handled this automatically
+      // If we reach here, it means EIP-3009 settlement is not configured or a wallet key is missing
       let paymentDetails = '';
       try {
         const body = await response.json();
@@ -158,7 +191,7 @@ export async function x402ApiRequest<T>(
       throw new Error(
         `x402 Payment Required for ${endpoint}\n\n` +
         `To enable automatic payments:\n` +
-        `1. Install x402-fetch: npm install x402-fetch viem\n` +
+        `1. Install viem: npm install viem\n` +
         `2. Set X402_WALLET_PRIVATE_KEY in your .env file\n` +
         `3. Add walletPrivateKey to plugin config\n\n` +
         `Payment details:\n${paymentDetails}`

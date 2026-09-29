@@ -2,7 +2,10 @@ import type { Action, IAgentRuntime, Memory, State, HandlerCallback, HandlerOpti
 import { x402ApiRequest, type X402ClientConfig } from '../client.js';
 import type { ApiResponse, TokenScanData } from '../types.js';
 
-const RISK_EMOJIS = { LOW: '🟢', MEDIUM: '🟡', HIGH: '🔴', CRITICAL: '💀' } as const;
+const RISK_EMOJIS = { LOW: '🟢', MEDIUM: '🟡', HIGH: '🔴', CRITICAL: '💀', UNKNOWN: '⚪' } as const;
+const status = (value: boolean | null, yes: string, no: string) =>
+  value === null ? '❔ Not reported' : value ? `⚠️ ${yes}` : `✅ ${no}`;
+const reported = (value: number | null, suffix = '') => value === null ? 'not reported' : `${value.toLocaleString()}${suffix}`;
 
 export function createTokenScannerAction(config: X402ClientConfig): Action {
   return {
@@ -19,9 +22,8 @@ export function createTokenScannerAction(config: X402ClientConfig): Action {
       'TOKEN_RISK',
     ],
     description:
-      'Scan a token for security risks: contract verification, mint function, proxy, liquidity lock, ' +
-      'honeypot detection, buy/sell tax, holder count, market cap. ' +
-      'Detects potential rug-pulls. Query with token symbol or address. Costs $0.003 USDC via x402.',
+      'Read GoPlus ERC-20 security signals and a disclosed risk heuristic. Some fields may be unavailable. ' +
+      'Query with contract address or supported symbol. Costs $0.003 USDC via x402.',
 
     validate: async (_runtime: IAgentRuntime, _message: Memory, _state?: State) => {
       return true;
@@ -60,23 +62,21 @@ export function createTokenScannerAction(config: X402ClientConfig): Action {
 
         const flags = t.risk_flags;
         const flagLines = [
-          `${flags.is_verified ? '✅' : '❌'} Contract verified`,
-          `${!flags.has_proxy ? '✅' : '⚠️'} ${flags.has_proxy ? 'Has proxy (upgradeable)' : 'No proxy'}`,
-          `${!flags.has_mint_function ? '✅' : '⚠️'} ${flags.has_mint_function ? 'Has mint function' : 'No mint function'}`,
-          `${flags.liquidity_locked ? '✅' : '❌'} Liquidity ${flags.liquidity_locked ? 'locked' : 'NOT locked'}`,
-          `${!flags.honeypot_risk ? '✅' : '💀'} ${flags.honeypot_risk ? 'HONEYPOT DETECTED' : 'No honeypot'}`,
-          `${!flags.high_buy_tax ? '✅' : '⚠️'} Buy tax: ${t.buy_tax}%`,
-          `${!flags.high_sell_tax ? '✅' : '⚠️'} Sell tax: ${t.sell_tax}%`,
+          `Open source: ${flags.is_verified === null ? 'not reported' : flags.is_verified ? 'yes' : 'no'}`,
+          status(flags.has_proxy, 'Upgradeable proxy', 'No proxy flag'),
+          status(flags.has_mint_function, 'Mintable', 'No mint flag'),
+          status(flags.honeypot_risk, 'Honeypot flag', 'No honeypot flag'),
+          status(flags.cannot_buy, 'Cannot buy flag', 'No buy restriction flag'),
+          `Buy tax: ${reported(t.buy_tax, '%')} | Sell tax: ${reported(t.sell_tax, '%')}`,
         ].join('\n');
 
         const response =
           `## 🔍 Token Scanner: ${t.symbol} (${t.name})\n\n` +
-          `${riskEmoji} **Risk: ${t.risk_level}** (score: ${t.risk_score}/100)\n\n` +
+          `${riskEmoji} **Heuristic risk: ${t.risk_level}** (score: ${t.risk_score ?? 'unavailable'}/100)\n\n` +
           `**Contract:** \`${t.address}\` on ${t.chain}\n` +
-          `**Price:** $${t.price_usd} | **Market Cap:** $${t.market_cap_usd?.toLocaleString()}\n` +
-          `**Liquidity:** $${t.liquidity_usd?.toLocaleString()} | **Holders:** ${t.holder_count?.toLocaleString()}\n` +
-          `**Age:** ${t.age_days} days\n\n` +
-          `### Security Checks\n${flagLines}`;
+          `**Holders:** ${reported(t.holder_count)}\n\n` +
+          `### Security Checks\n${flagLines}\n\n` +
+          `*${t.risk_score_basis}*`;
 
         if (callback) {
           await callback({ text: response, source: message.content.source });
@@ -93,7 +93,7 @@ export function createTokenScannerAction(config: X402ClientConfig): Action {
     examples: [
       [
         { name: '{{user}}', content: { text: 'Is PEPE safe to buy? Check for rug' } },
-        { name: '{{agent}}', content: { text: '## 🔍 Token Scanner: PEPE\n\n🟢 **Risk: LOW** (score: 15/100)\n\n✅ Contract verified\n✅ No proxy\n✅ Liquidity locked\n✅ No honeypot', actions: ['SCAN_TOKEN'] } },
+        { name: '{{agent}}', content: { text: 'Checking live GoPlus security signals for PEPE. Missing checks will show as not reported.', actions: ['SCAN_TOKEN'] } },
       ],
       [
         { name: '{{user}}', content: { text: 'Scan this token: 0x6982508145454Ce325dDbE47a25d4ec3d2311933' } },
