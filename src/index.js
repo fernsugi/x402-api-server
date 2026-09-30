@@ -43,6 +43,8 @@ const {
 } = require('./middleware/x402');
 const { getSettlementMode, isEip3009SettlementConfigured } = require('./payment-config');
 const { BAZAAR_SCHEMAS } = require('./bazaar-schemas');
+const { createAnalytics } = require('./services/analytics');
+const workflows = require('./workflows.json');
 
 const app = express();
 const PORT = process.env.PORT || 4020;
@@ -61,13 +63,28 @@ app.set('trust proxy', true);
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'X-Payment', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'X-Payment', 'Authorization', 'X-X402-Source'],
   exposedHeaders: ['X-Payment-Response'],
 }));
 
 // Structured logging
 app.use(morgan(NODE_ENV === 'production' ? 'combined' : 'dev'));
 app.use(express.json());
+// Public, short-lived directory ownership challenges. Edit credentials are
+// never served here; this only proves control of the endpoint to its directory.
+let directoryChallenges = {};
+try { directoryChallenges = JSON.parse(process.env.NOHUMANS_CHALLENGES || '{}'); } catch { /* ignore invalid optional config */ }
+app.use((req, res, next) => {
+  const challenge = directoryChallenges[req.path];
+  if (typeof challenge === 'string' && /^[a-zA-Z0-9_-]{16,256}$/.test(challenge)) res.setHeader('X-Nohumans-Claim', challenge);
+  next();
+});
+const analytics = createAnalytics({ directory: process.env.X402_ANALYTICS_DIR, key: process.env.X402_ANALYTICS_KEY });
+app.use(analytics.middleware);
+app.use((req, res, next) => {
+  req.recordSettlement = (payment, route) => analytics.settled(req, payment, route);
+  next();
+});
 app.use(express.static(path.join(__dirname, 'views')));
 
 // Request ID for tracing
@@ -203,7 +220,19 @@ function endpointCatalog() {
 
 app.get('/api/endpoints', (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=300');
-  res.json(endpointCatalog());
+  const catalog = endpointCatalog();
+  const examples = require('./endpoint-examples.json');
+  catalog.endpoints.forEach(endpoint => { endpoint.example_url = `https://x402-api.fly.dev${examples[endpoint.path]}`; });
+  res.json(catalog);
+});
+
+app.get('/api/workflows', (req, res) => {
+  res.setHeader('Cache-Control', 'public, max-age=300');
+  res.json({ workflows, mode: 'inspect by default; payment requires explicit opt-in' });
+});
+
+app.get('/get/mcp', (req, res) => {
+  res.redirect(302, 'https://www.npmjs.com/package/@x402-api/mcp-server');
 });
 
 // A stable, public discovery document for agents that start from the domain.
@@ -324,7 +353,9 @@ GET /api/wallet-profiler $0.008 USDC  Observed priced balances; coverage can be 
 
 ## Free Endpoints
 GET /health                           Server health check
-GET /api/endpoints                    Machine-readable endpoint catalog (JSON)
+GET /api/endpoints                    Machine-readable endpoint catalog with runnable query URLs (JSON)
+GET /api/workflows                    Three concrete agent workflows and exact budgets (JSON)
+GET /demos/                           Human-readable workflows with recorded provider examples
 GET /api/bazaar                       Bazaar discovery schemas (JSON)
 GET /.well-known/x402                Public agent discovery manifest (JSON)
 GET /openapi.json                    OpenAPI 3.1 description of paid routes

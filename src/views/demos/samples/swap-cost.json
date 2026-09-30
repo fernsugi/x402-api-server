@@ -1,0 +1,291 @@
+{
+  "captured_at": "2026-09-30T06:33:41.931023+00:00",
+  "payment_mode": "local development mock; public provider data; no production payment",
+  "highlights": [
+    {
+      "value": "2662.605633",
+      "label": "Expected USDC output \u00b7 historical quote"
+    },
+    {
+      "value": "ParaSwap",
+      "label": "One aggregate route provider"
+    },
+    {
+      "value": "0.131099",
+      "label": "Ethereum normal gas \u00b7 gwei"
+    }
+  ],
+  "records": [
+    {
+      "step": "ParaSwap route quote",
+      "url": "/api/dex-quotes?from=ETH&to=USDC&amount=1&chain=ethereum",
+      "response": {
+        "timestamp": "2026-09-30T06:33:41.929Z",
+        "source": "ParaSwap",
+        "cached": false,
+        "cache_ttl_seconds": 15,
+        "payment": {
+          "verified": true,
+          "mock": true,
+          "txHash": "0xMOCK_DEV_MODE",
+          "payer": "0xMOCK_PAYER",
+          "amount": "2000"
+        },
+        "query": {
+          "chain": "ethereum",
+          "from": "ETH",
+          "to": "USDC",
+          "amount": "1"
+        },
+        "data": {
+          "pair": "ETH/USDC",
+          "chain": "ethereum",
+          "input_amount": 1,
+          "input_value_usd": 2665.68,
+          "base_rate": 2662.605633,
+          "best_dex": "paraswap",
+          "best_output": 2662.605633,
+          "savings_vs_worst": null,
+          "quotes": [
+            {
+              "dex": "paraswap",
+              "dex_name": "ParaSwap aggregate route",
+              "input_token": "ETH",
+              "output_token": "USDC",
+              "input_token_address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+              "output_token_address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48",
+              "input_amount": 1,
+              "output_amount": 2662.605633,
+              "effective_rate": 2662.605633,
+              "price_impact_pct": null,
+              "fee_bps": null,
+              "fee_usd": null,
+              "estimated_gas_usd": 0.045486,
+              "route": [
+                "uniswapv3"
+              ],
+              "min_output": null,
+              "expires_in_seconds": null,
+              "quote_block": 26088528
+            }
+          ],
+          "recommendation": {
+            "dex": "ParaSwap aggregate route",
+            "reason": "Best route returned by ParaSwap; no independent venue comparison was made.",
+            "output": 2662.605633,
+            "total_cost_usd": null
+          }
+        }
+      }
+    },
+    {
+      "step": "Current gas tiers",
+      "url": "/api/gas-tracker",
+      "response": {
+        "timestamp": "2026-09-30T06:33:40.468Z",
+        "source": "public RPCs",
+        "cached": false,
+        "cache_ttl_seconds": 15,
+        "unavailable_chains": [],
+        "estimation_note": "Operation gas units are estimates; L2 data fees and execution differences may add cost.",
+        "payment": {
+          "verified": true,
+          "mock": true,
+          "txHash": "0xMOCK_DEV_MODE",
+          "payer": "0xMOCK_PAYER",
+          "amount": "1000"
+        },
+        "data": {
+          "ethereum": {
+            "chain": "Ethereum",
+            "chain_id": 1,
+            "native_token": "ETH",
+            "is_mock": false,
+            "tier_method": "eth_feeHistory reward percentiles (10/50/90)",
+            "native_token_price_usd": 2664.27,
+            "gas_price_gwei": {
+              "slow": 0.091216,
+              "normal": 0.131099,
+              "fast": 1.408777
+            },
+            "estimated_cost_native": {
+              "transfer": {
+                "slow": 1.9155e-06,
+                "normal": 2.7531e-06,
+                "fast": 2.95843e-05
+              },
+              "swap": {
+                "slow": 1.36823e-05,
+                "normal": 1.96649e-05,
+                "fast": 0.0002113166
+              },
+              "nft_mint": {
+                "slow": 7.7533e-06,
+                "normal": 1.11434e-05,
+                "fast": 0.0001197461
+              }
+            },
+            "estimated_cost_usd": {
+              "transfer": {
+                "slow": 0.005103,
+                "normal": 0.007335,
+                "fast": 0.078821
+              },
+              "swap": {
+                "slow": 0.036453,
+                "normal": 0.052393,
+                "fast": 0.563004
+              },
+              "nft_mint": {
+                "slow": 0.020657,
+                "normal": 0.029689,
+                "fast": 0.319036
+              }
+            }
+          },
+          "base": {
+            "chain": "Base",
+            "chain_id": 8453,
+            "native_token": "ETH",
+            "is_mock": false,
+            "tier_method": "eth_feeHistory reward percentiles (10/50/90)",
+            "native_token_price_usd": 2664.27,
+            "gas_price_gwei": {
+              "slow": 0.005006,
+              "normal": 0.0075,
+              "fast": 0.011414
+            },
+            "estimated_cost_native": {
+              "transfer": {
+                "slow": 1.051e-07,
+                "normal": 1.575e-07,
+                "fast": 2.397e-07
+              },
+              "swap": {
+                "slow": 7.509e-07,
+                "normal": 1.125e-06,
+                "fast": 1.7122e-06
+              },
+              "nft_mint": {
+                "slow": 4.255e-07,
+                "normal": 6.375e-07,
+                "fast": 9.702e-07
+              }
+            },
+            "estimated_cost_usd": {
+              "transfer": {
+                "slow": 0.00028,
+                "normal": 0.00042,
+                "fast": 0.000639
+              },
+              "swap": {
+                "slow": 0.002,
+                "normal": 0.002997,
+                "fast": 0.004562
+              },
+              "nft_mint": {
+                "slow": 0.001134,
+                "normal": 0.001698,
+                "fast": 0.002585
+              }
+            }
+          },
+          "polygon": {
+            "chain": "Polygon",
+            "chain_id": 137,
+            "native_token": "POL",
+            "is_mock": false,
+            "tier_method": "eth_feeHistory reward percentiles (10/50/90)",
+            "native_token_price_usd": 0.115827,
+            "gas_price_gwei": {
+              "slow": 283.048861,
+              "normal": 308.359136,
+              "fast": 347.359136
+            },
+            "estimated_cost_native": {
+              "transfer": {
+                "slow": 0.0059440261,
+                "normal": 0.0064755419,
+                "fast": 0.0072945419
+              },
+              "swap": {
+                "slow": 0.0424573291,
+                "normal": 0.0462538704,
+                "fast": 0.0521038704
+              },
+              "nft_mint": {
+                "slow": 0.0240591531,
+                "normal": 0.0262105266,
+                "fast": 0.0295255266
+              }
+            },
+            "estimated_cost_usd": {
+              "transfer": {
+                "slow": 0.000688,
+                "normal": 0.00075,
+                "fast": 0.000845
+              },
+              "swap": {
+                "slow": 0.004918,
+                "normal": 0.005357,
+                "fast": 0.006035
+              },
+              "nft_mint": {
+                "slow": 0.002787,
+                "normal": 0.003036,
+                "fast": 0.00342
+              }
+            }
+          },
+          "arbitrum": {
+            "chain": "Arbitrum",
+            "chain_id": 42161,
+            "native_token": "ETH",
+            "is_mock": false,
+            "tier_method": "eth_feeHistory reward percentiles (10/50/90)",
+            "native_token_price_usd": 2664.27,
+            "gas_price_gwei": {
+              "slow": 0.020004,
+              "normal": 0.020004,
+              "fast": 0.020004
+            },
+            "estimated_cost_native": {
+              "transfer": {
+                "slow": 4.201e-07,
+                "normal": 4.201e-07,
+                "fast": 4.201e-07
+              },
+              "swap": {
+                "slow": 3.0006e-06,
+                "normal": 3.0006e-06,
+                "fast": 3.0006e-06
+              },
+              "nft_mint": {
+                "slow": 1.7003e-06,
+                "normal": 1.7003e-06,
+                "fast": 1.7003e-06
+              }
+            },
+            "estimated_cost_usd": {
+              "transfer": {
+                "slow": 0.001119,
+                "normal": 0.001119,
+                "fast": 0.001119
+              },
+              "swap": {
+                "slow": 0.007994,
+                "normal": 0.007994,
+                "fast": 0.007994
+              },
+              "nft_mint": {
+                "slow": 0.00453,
+                "normal": 0.00453,
+                "fast": 0.00453
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

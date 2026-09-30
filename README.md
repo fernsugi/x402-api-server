@@ -349,3 +349,9 @@ docker compose up -d
 ## License
 
 MIT
+
+## Agent workflows
+
+[Explore three demos](https://x402-api.fly.dev/demos/?utm_source=github) or run [the examples](examples/README.md): PEPE token flags + holder sample (0.008 USDC), ETH funding comparison (0.008), and ParaSwap quote + gas (0.003). Inspect mode is free and never signs a payment. Paid mode pins the official recipient and enforces a total budget.
+
+Free `/api/workflows` and `/api/endpoints` include concrete valid query URLs. The [MCP package](https://www.npmjs.com/package/@x402-api/mcp-server) exposes all eight tools. Optional first-party journals measure visits, install link clicks, payment challenges, settled calls and first/repeat observed payers; crawler probes and operator testing are separate. See [EXPOSURE.md](EXPOSURE.md).
