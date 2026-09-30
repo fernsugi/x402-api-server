@@ -79,6 +79,12 @@ app.use((req, res, next) => {
   if (typeof challenge === 'string' && /^[a-zA-Z0-9_-]{16,256}$/.test(challenge)) res.setHeader('X-Nohumans-Claim', challenge);
   next();
 });
+app.get('/.well-known/nohumans-claim', (req, res) => {
+  const token = directoryChallenges['/api/wallet-profiler'];
+  if (typeof token !== 'string' || !/^[a-zA-Z0-9_-]{16,256}$/.test(token)) return res.sendStatus(404);
+  res.setHeader('Cache-Control', 'no-store');
+  res.type('text/plain').send(token);
+});
 const analytics = createAnalytics({ directory: process.env.X402_ANALYTICS_DIR, key: process.env.X402_ANALYTICS_KEY });
 app.use(analytics.middleware);
 app.use((req, res, next) => {
