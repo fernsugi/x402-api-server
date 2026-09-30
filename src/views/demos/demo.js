@@ -1,0 +1,9 @@
+const id=document.body.dataset.workflow;
+const workflows=(await fetch('/api/workflows').then(r=>r.json())).workflows;
+const flow=workflows.find(x=>x.id===id);
+const output=document.querySelector('#live');
+document.querySelector('#inspect').addEventListener('click',async event=>{
+ const button=event.currentTarget;button.disabled=true;output.textContent='Checking live providers and payment requirements…';
+ try{const lines=[];let total=0;for(const step of flow.steps){const response=await fetch(step.url,{headers:{'X-X402-Source':'demo'},signal:AbortSignal.timeout(60000)});const body=await response.json();if(response.status!==402||!body.accepts?.[0])throw new Error(`${step.name}: HTTP ${response.status}. No payment sent.`);const offer=body.accepts[0];total+=Number(offer.maxAmountRequired);lines.push(`${step.name} → HTTP 402 · ${(Number(offer.maxAmountRequired)/1e6).toFixed(3)} USDC · ${offer.network}`)}output.textContent=lines.join('\n')+`\nTotal: ${(total/1e6).toFixed(3)} USDC. No signature created. No money spent.`}catch(error){output.textContent=error.message}finally{button.disabled=false}
+});
+try{const sample=await fetch(`/demos/samples/${id}.json`).then(r=>{if(!r.ok)throw new Error('Recorded sample unavailable');return r.json()});document.querySelector('#recorded-date').textContent='CAPTURED '+new Date(sample.captured_at).toISOString().slice(0,16).replace('T',' ')+' UTC';document.querySelector('#recorded').textContent=JSON.stringify(sample,null,2);const box=document.querySelector('#highlights');for(const metric of sample.highlights){const div=document.createElement('div');div.className='metric';const value=document.createElement('b');value.textContent=metric.value;const label=document.createElement('span');label.textContent=metric.label;div.append(value,label);box.append(div)}}catch(error){document.querySelector('#recorded').textContent=error.message}

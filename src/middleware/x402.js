@@ -123,7 +123,7 @@ function requirePayment(config) {
         mock: result.mock || false,
         txHash: result.txHash,
         payer: result.payer,
-        amount: result.amount,
+        amount: result.amount || String(maxAmountRequired),
       };
 
       res.setHeader('X-Payment-Response', JSON.stringify({
@@ -136,6 +136,7 @@ function requirePayment(config) {
       // One structured event per settled call lets the operator measure paid
       // demand and revenue by route without logging a payer wallet or key.
       if (result.settled && !result.mock) {
+        req.recordSettlement?.(req.x402, resource);
         console.info(JSON.stringify({
           event: 'x402_payment_settled',
           route: resource,

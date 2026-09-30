@@ -1,0 +1,10 @@
+{
+  "/api/price-feed":"/api/price-feed",
+  "/api/gas-tracker":"/api/gas-tracker",
+  "/api/dex-quotes":"/api/dex-quotes?from=ETH&to=USDC&amount=1&chain=ethereum",
+  "/api/token-scanner":"/api/token-scanner?token=PEPE&chain=ethereum",
+  "/api/whale-tracker":"/api/whale-tracker?token=PEPE&chain=ethereum",
+  "/api/funding-rates":"/api/funding-rates?asset=ETH",
+  "/api/yield-scanner":"/api/yield-scanner?chain=base&asset=USDC&min_tvl=1000000&limit=5",
+  "/api/wallet-profiler":"/api/wallet-profiler?address=0x60264c480b67adb557efEd22Cf0e7ceA792DefB7&chain=base"
+}

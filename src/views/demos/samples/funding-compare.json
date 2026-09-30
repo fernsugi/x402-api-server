@@ -1,0 +1,83 @@
+{
+  "captured_at": "2026-09-30T06:33:40.164590+00:00",
+  "payment_mode": "local development mock; public provider data; no production payment",
+  "highlights": [
+    {
+      "value": "2",
+      "label": "Venues with ETH observations"
+    },
+    {
+      "value": "1.25e-05",
+      "label": "Hyperliquid hourly current rate"
+    },
+    {
+      "value": "-4.018939393939394e-05",
+      "label": "dYdX hourly predicted rate"
+    }
+  ],
+  "records": [
+    {
+      "step": "ETH funding rates",
+      "url": "/api/funding-rates?asset=ETH",
+      "response": {
+        "timestamp": "2026-09-30T06:33:40.163Z",
+        "source": [
+          "Hyperliquid",
+          "dYdX v4"
+        ],
+        "cached": false,
+        "cache_ttl_seconds": 30,
+        "payment": {
+          "verified": true,
+          "mock": true,
+          "txHash": "0xMOCK_DEV_MODE",
+          "payer": "0xMOCK_PAYER",
+          "amount": "8000"
+        },
+        "query": {
+          "asset": "ETH",
+          "min_spread_bps": 0
+        },
+        "protocols": [
+          "hyperliquid",
+          "dydx_v4"
+        ],
+        "unavailable_protocols": [],
+        "assets_covered": [
+          "ETH"
+        ],
+        "funding_interval_hours": 1,
+        "data": {
+          "ETH": {
+            "hyperliquid": {
+              "funding_rate": 1.25e-05,
+              "funding_interval_hours": 1,
+              "annualized_pct": 10.95,
+              "open_interest_usd": 3115323993.26,
+              "rate_kind": "current"
+            },
+            "dydx_v4": {
+              "funding_rate": -4.018939393939394e-05,
+              "funding_interval_hours": 1,
+              "annualized_pct": -35.21,
+              "open_interest_usd": 13708270.8,
+              "rate_kind": "next_predicted"
+            }
+          }
+        },
+        "arb_opportunities": [
+          {
+            "asset": "ETH",
+            "long_venue": "dydx_v4",
+            "long_rate": -4.018939393939394e-05,
+            "short_venue": "hyperliquid",
+            "short_rate": 1.25e-05,
+            "spread_bps": 0.5269,
+            "annualized_arb_pct": 46.16,
+            "note": "Indicative rate spread only; venues report current versus predicted rates. Trading fees, basis risk and funding changes are excluded."
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "captured_at": "2026-09-30T06:33:40.069136+00:00",
+  "payment_mode": "local development mock; public provider data; no production payment",
+  "highlights": [
+    {
+      "value": "PEPE",
+      "label": "Token \u00b7 GoPlus"
+    },
+    {
+      "value": "LOW",
+      "label": "Local heuristic risk level \u00b7 not an audit"
+    },
+    {
+      "value": "10",
+      "label": "Top holders in provider sample"
+    }
+  ],
+  "records": [
+    {
+      "step": "Token security",
+      "url": "/api/token-scanner?token=PEPE&chain=ethereum",
+      "response": {
+        "timestamp": "2026-09-30T06:33:40.068Z",
+        "source": "GoPlus",
+        "cached": true,
+        "cache_ttl_seconds": 60,
+        "payment": {
+          "verified": true,
+          "mock": true,
+          "txHash": "0xMOCK_DEV_MODE",
+          "payer": "0xMOCK_PAYER",
+          "amount": "3000"
+        },
+        "query": {
+          "token": "PEPE",
+          "chain": "ethereum"
+        },
+        "data": {
+          "address": "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
+          "name": "Pepe",
+          "symbol": "PEPE",
+          "chain": "ethereum",
+          "deployer": "0xfbfEaF0DA0F2fdE5c66dF570133aE35f3eB58c9A",
+          "deploy_date": null,
+          "total_supply": "420689899645071.695787564425681079",
+          "holder_count": 595186,
+          "is_verified": true,
+          "has_proxy": false,
+          "has_mint_function": false,
+          "liquidity_locked": null,
+          "honeypot_risk": false,
+          "buy_tax": 0,
+          "sell_tax": 0,
+          "liquidity_usd": null,
+          "market_cap_usd": null,
+          "price_usd": null,
+          "risk_score": 0,
+          "risk_score_basis": "Local heuristic over available GoPlus flags; not an audit or guarantee",
+          "risk_level": "LOW",
+          "risk_flags": {
+            "is_verified": true,
+            "has_proxy": false,
+            "has_mint_function": false,
+            "liquidity_locked": null,
+            "honeypot_risk": false,
+            "cannot_buy": false,
+            "high_buy_tax": false,
+            "high_sell_tax": false
+          },
+          "age_days": null
+        }
+      }
+    },
+    {
+      "step": "Holder concentration",
+      "url": "/api/whale-tracker?token=PEPE&chain=ethereum",
+      "response": {
+        "timestamp": "2026-09-30T06:33:40.065Z",
+        "source": "GoPlus",
+        "cached": false,
+        "cache_ttl_seconds": 60,
+        "payment": {
+          "verified": true,
+          "mock": true,
+          "txHash": "0xMOCK_DEV_MODE",
+          "payer": "0xMOCK_PAYER",
+          "amount": "5000"
+        },
+        "query": {
+          "token": "PEPE",
+          "chain": "ethereum"
+        },
+        "data": {
+          "token": "PEPE",
+          "token_address": "0x6982508145454Ce325dDbE47a25d4ec3d2311933",
+          "chain": "ethereum",
+          "total_supply": "420689899645071.695787564425681079",
+          "circulating_supply": null,
+          "holder_count": 595186,
+          "concentration_metrics": {
+            "top_1_pct": 8.8303,
+            "top_10_pct": 36.999,
+            "top_20_pct": null,
+            "gini_coefficient": null,
+            "herfindahl_index": null
+          },
+          "distribution_buckets": [],
+          "top_holders": [
+            {
+              "rank": 1,
+              "address": "0xf977814e90da44bfa03b6295a0616a897441acec",
+              "label": null,
+              "wallet_type": "wallet",
+              "balance": "37148167235192.079",
+              "percentage": 8.8303,
+              "is_contract": false,
+              "is_locked": false
+            },
+            {
+              "rank": 2,
+              "address": "0x5a52e96bacdabb82fd05763e25335261b270efcb",
+              "label": null,
+              "wallet_type": "wallet",
+              "balance": "27764435135680.9608773786689001",
+              "percentage": 6.5997,
+              "is_contract": false,
+              "is_locked": false
+            },
+            {
+              "rank": 3,
+              "address": "0x1d48963dd8fada6ab5c2c7b92eba81ecc5030270",
+              "label": null,
+              "wallet_type": "wallet",
+              "balance": "25440231359335.883197028959490652",
+              "percentage": 6.0473,
+              "is_contract": false,
+              "is_locked": false
+            },
+            {
+              "rank": 4,
+              "address": "0x3f9a8345729ea842708e080e238c92731e5699b8",
+              "label": null,
+              "wallet_type": "wallet",
+              "balance": "14172730037355.091677350014162041",
+              "percentage": 3.3689,
+              "is_contract": false,
+              "is_locked": false
+            },
+            {
+              "rank": 5,
+              "address": "0x611f7bf868a6212f871e89f7e44684045ddfb09d",
+              "label": null,
+              "wallet_type": "wallet",
+              "balance": "13080244285503.298391872716941006",
+              "percentage": 3.1092,
+              "is_contract": false,
+              "is_locked": false
+            },
+            {
+              "rank": 6,
+              "address": "0xc93e48d89f2d6dbc1672908aa68ce7c24d0413b4",
+              "label": null,
+              "wallet_type": "wallet",
+              "balance": "8600000000130.02",
+              "percentage": 2.0443,
+              "is_contract": false,
+              "is_locked": false
+            },
+            {
+              "rank": 7,
+              "address": "0xbf45fb5d20bc3d0954188773e803b4e30e87e0b8",
+              "label": null,
+              "wallet_type": "wallet",
+              "balance": "8051614063743.31707225",
+              "percentage": 1.9139,
+              "is_contract": false,
+              "is_locked": false
+            },
+            {
+              "rank": 8,
+              "address": "0x76ec5a0d3632b2133d9f1980903305b62678fbd3",
+              "label": null,
+              "wallet_type": "wallet",
+              "balance": "7440308597526.368805293530999119",
+              "percentage": 1.7686,
+              "is_contract": false,
+              "is_locked": false
+            },
+            {
+              "rank": 9,
+              "address": "0xc671b05671a7cd3080c6ceae79d284bdde0ef271",
+              "label": null,
+              "wallet_type": "wallet",
+              "balance": "7036041092663.592493831579570323",
+              "percentage": 1.6725,
+              "is_contract": false,
+              "is_locked": false
+            },
+            {
+              "rank": 10,
+              "address": "0x000000000000000000000000000000000000dead",
+              "label": null,
+              "wallet_type": "wallet",
+              "balance": "6917544537127.740524900319904797",
+              "percentage": 1.6443,
+              "is_contract": false,
+              "is_locked": true
+            }
+          ],
+          "recent_large_transfers": [],
+          "coverage": {
+            "holders_returned": 10,
+            "gini_available": false,
+            "recent_transfers_available": false,
+            "note": "Top-holder sample only. Full distribution and transfer history are not supplied by this provider."
+          }
+        }
+      }
+    }
+  ]
+}

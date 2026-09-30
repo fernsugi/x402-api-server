@@ -4,8 +4,12 @@
 **/dist
 elizaos-plugin
 data
-scripts
+scripts/*
+!scripts/analytics-report.js
 test
 *.md
 *.log
 .DS_Store
+
+media
+examples
