@@ -28,6 +28,10 @@ const USDC = {
 };
 const NATIVE = { ethereum: 'ETH', base: 'ETH', arbitrum: 'ETH', polygon: 'POL' };
 const COINLORE_BASE = process.env.COINLORE_API_BASE || 'https://api.coinlore.net/api';
+// Explorer retries followed by RPC fallback used to take over 30 seconds.
+// Bound the whole chain lookup so slow sources cannot hold up every chain.
+const CHAIN_BUDGET_MS = 6_000;
+const EXPLORER_TIMEOUT_MS = 2_000;
 const loadCached = createLiveCache(60_000, 100);
 const priceCache = createLiveCache(60_000, 1);
 
@@ -56,18 +60,18 @@ function tokenHolding(item, chain) {
   };
 }
 
-async function rpc(chain, method, params) {
+async function rpc(chain, method, params, signal) {
   const { data } = await axios.post(RPCS[chain], { jsonrpc: '2.0', id: 1, method, params }, {
-    timeout: 6_000, headers: { 'Content-Type': 'application/json' },
+    timeout: 6_000, signal, headers: { 'Content-Type': 'application/json' },
   });
   if (!/^0x[0-9a-fA-F]+$/.test(data?.result || '')) throw new Error(`${chain} RPC failed`);
   return BigInt(data.result);
 }
 
-async function fallbackPrices() {
+async function fallbackPrices(signal) {
   const { value } = await priceCache('wallet', async () => {
     const { data } = await axios.get(`${COINLORE_BASE}/tickers/`, {
-      params: { start: 0, limit: 100 }, timeout: 8_000,
+      params: { start: 0, limit: 100 }, timeout: 2_000, signal,
     });
     if (!Array.isArray(data?.data)) throw new Error('CoinLore wallet prices unavailable');
     return Object.fromEntries(data.data.map(item => [item.symbol, Number(item.price_usd)]));
@@ -75,12 +79,12 @@ async function fallbackPrices() {
   return value;
 }
 
-async function fetchRpcBalances(address, chain, accountData, counterData) {
+async function fetchRpcBalances(address, chain, accountData, counterData, signal) {
   const calldata = `0x70a08231${address.slice(2).toLowerCase().padStart(64, '0')}`;
   const [nativeResult, usdcResult, priceResult] = await Promise.allSettled([
-    rpc(chain, 'eth_getBalance', [address, 'latest']),
-    rpc(chain, 'eth_call', [{ to: USDC[chain], data: calldata }, 'latest']),
-    fallbackPrices(),
+    rpc(chain, 'eth_getBalance', [address, 'latest'], signal),
+    rpc(chain, 'eth_call', [{ to: USDC[chain], data: calldata }, 'latest'], signal),
+    fallbackPrices(signal),
   ]);
   if (nativeResult.status !== 'fulfilled' && usdcResult.status !== 'fulfilled') {
     throw new Error(`${chain} Blockscout and public RPCs unavailable`);
@@ -111,16 +115,18 @@ async function fetchRpcBalances(address, chain, accountData, counterData) {
   };
 }
 
-async function fetchChain(address, chain) {
+async function fetchChain(address, chain, signal) {
   const base = `${EXPLORERS[chain]}/api/v2/addresses/${address}`;
   const request = path => axios.get(`${base}${path}`, {
-    timeout: 12_000,
+    timeout: EXPLORER_TIMEOUT_MS,
+    signal,
     headers: { Accept: 'application/json' },
     maxContentLength: 8_000_000,
   }).then(response => response.data);
   const tokenBalances = async () => {
     try { return await request('/token-balances'); }
-    catch {
+    catch (error) {
+      if (signal.aborted) throw error;
       await new Promise(resolve => setTimeout(resolve, 300));
       return request('/token-balances');
     }
@@ -131,7 +137,7 @@ async function fetchChain(address, chain) {
   const accountData = account.status === 'fulfilled' ? account.value : null;
   const counterData = counters.status === 'fulfilled' ? counters.value : null;
   if (balances.status !== 'fulfilled' || !Array.isArray(balances.value)) {
-    return fetchRpcBalances(address, chain, accountData, counterData);
+    return fetchRpcBalances(address, chain, accountData, counterData, signal);
   }
 
   const holdings = balances.value.map(item => tokenHolding(item, chain)).filter(Boolean);
@@ -156,7 +162,8 @@ async function fetchChain(address, chain) {
 }
 
 async function getChain(address, chain) {
-  return loadCached(`${chain}:${address.toLowerCase()}`, () => fetchChain(address, chain));
+  return loadCached(`${chain}:${address.toLowerCase()}`, () =>
+    fetchChain(address, chain, AbortSignal.timeout(CHAIN_BUDGET_MS)));
 }
 
 router.get(
@@ -234,6 +241,7 @@ router.get(
         coverage: {
           available_chains: available,
           unavailable_chains: unavailable,
+          provider_budget_ms: CHAIN_BUDGET_MS,
           balance_sources: balanceSources,
           priced_holdings: priced.length,
           unpriced_or_untrusted_holdings: unpriced.length,

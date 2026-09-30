@@ -189,3 +189,62 @@ test('wallet route reports a limited RPC fallback when Blockscout fails', async 
     await new Promise(resolve => upstream.close(resolve));
   }
 });
+
+test('slow wallet sources are cancelled while available balances remain usable', async () => {
+  let baseAvailable = true;
+  const upstream = http.createServer(async (req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    if (req.url.startsWith('/blockscout/base/')) {
+      res.statusCode = 503;
+      res.end('{}');
+      return;
+    }
+    if (req.url.startsWith('/blockscout/')) return; // Deliberately never responds.
+    if (req.url.startsWith('/tickers/')) {
+      res.end(JSON.stringify({ data: [{ symbol: 'ETH', price_usd: '2000' }, { symbol: 'USDC', price_usd: '1' }] }));
+      return;
+    }
+    if (req.url === '/rpc/base' && baseAvailable) {
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      const { method } = JSON.parse(body);
+      res.end(JSON.stringify({ jsonrpc: '2.0', id: 1,
+        result: method === 'eth_getBalance' ? '0xde0b6b3a7640000' : '0x989680' }));
+      return;
+    }
+    // Unavailable RPCs also hang, exercising the total budget after retries.
+  });
+  await new Promise(resolve => upstream.listen(0, '127.0.0.1', resolve));
+  const source = `http://127.0.0.1:${upstream.address().port}`;
+  const env = { COINLORE_API_BASE: source };
+  for (const chain of ['ethereum', 'base', 'arbitrum', 'polygon']) {
+    env[`${chain.toUpperCase()}_BLOCKSCOUT_URL`] = `${source}/blockscout/${chain}`;
+    env[`${chain.toUpperCase()}_RPC_URL`] = `${source}/rpc/${chain}`;
+  }
+  const api = await startServer(env);
+  try {
+    const started = performance.now();
+    const response = await fetch(`${api.base}/api/wallet-profiler?address=0x0000000000000000000000000000000000000001`, {
+      headers: { 'X-Payment': 'mock' }, signal: AbortSignal.timeout(9_000),
+    });
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.ok(performance.now() - started < 8_000, 'cold lookup finishes below external 10-second probe limit');
+    assert.deepEqual(body.data.coverage.available_chains, ['base']);
+    assert.deepEqual(body.data.coverage.unavailable_chains, ['ethereum', 'arbitrum', 'polygon']);
+    assert.equal(body.data.coverage.provider_budget_ms, 6_000);
+    assert.equal(body.data.coverage.balance_sources.base, 'public RPC (native and USDC only)');
+    assert.equal(body.data.total_value_usd, 2010);
+
+    baseAvailable = false;
+    const failed = await fetch(`${api.base}/api/wallet-profiler?address=0x0000000000000000000000000000000000000002`, {
+      headers: { 'X-Payment': 'mock' }, signal: AbortSignal.timeout(9_000),
+    });
+    assert.equal(failed.status, 503, 'all unavailable providers fail before payment');
+    assert.equal(failed.headers.get('X-Payment-Response'), null);
+  } finally {
+    await stopServer(api.child);
+    upstream.closeAllConnections();
+    await new Promise(resolve => upstream.close(resolve));
+  }
+});
