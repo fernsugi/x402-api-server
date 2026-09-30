@@ -252,7 +252,7 @@ The plugin adds 8 actions: `GET_CRYPTO_PRICES`, `GET_GAS_PRICES`, `GET_DEX_QUOTE
 ## Local Development
 
 ```bash
-git clone https://github.com/sugi/x402-api-server
+git clone https://github.com/fernsugi/x402-api-server
 cd x402-api-server
 cp .env.example .env   # defaults to development mode
 npm install
