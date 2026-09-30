@@ -4,7 +4,7 @@
 
 | Surface | Result |
 | --- | --- |
-| Production API | 1.0.4 deployed to the existing Fly app; health check passed |
+| Production API | 1.0.5 deployed to the existing Fly app; health check passed |
 | Workflow demos | [Three public demos](https://x402-api.fly.dev/demos/), with runnable examples and explicit workflow budgets |
 | Walkthrough videos | Three 18-second MP4 assets on [API release 1.0.4](https://github.com/fernsugi/x402-api-server/releases/tag/v1.0.4) |
 | MCP package | [@x402-api/mcp-server 1.0.5](https://www.npmjs.com/package/@x402-api/mcp-server) published |
@@ -39,11 +39,11 @@ fly ssh console --app x402-api --machine MACHINE_ID -C 'node scripts/analytics-r
 
 - [Glama](https://glama.ai/mcp/servers/fernsugi/x402-api-mcp-server): ownership claimed, description and environment configuration corrected, repository synced, build and release succeeded. The running server reported MCP 1.0.5 and all eight tools; the public schema now shows the corrected descriptions. Glama's own release label increments independently of the npm package version. Its historical tool-quality score was not refreshed by this build.
 - nohumans.directory: all 7,068 active records scanned; all eight routes already listed. All eight listings claimed and their names, descriptions, categories and response schemas corrected. Free recorded previews are explicitly historical; generic catalogue pages were removed as alleged response samples. No new listing fee paid.
-- Seven directory listings were verified at the audit. The [wallet listing](https://nohumans.directory/l/1a3a97e9-b01) remains failing: the 07:16:48 UTC probe on 30 September recorded its twentieth consecutive failure and a score of about 0.122. Our current exact-URL GET checks returned a valid 402 challenge; this does not override the directory's independent failure signal. Its public record does not disclose the individual failure reason. Recovery has not been established. Next check was due by 09:16:48 UTC under its two-hour tier.
+- Seven directory listings were verified at the audit. The [wallet listing](https://nohumans.directory/l/1a3a97e9-b01) remains failing: the 16:16:48 JST probe on 30 September recorded its twentieth consecutive failure and a score of about 0.122. Its public record does not disclose the individual failure reason. CDP independently reproduced a ten-second timeout on the same URL, revealing a slow provider path missed by our earlier checks. API 1.0.5 now bounds each chain lookup to six seconds and cancels slow requests; partial coverage is disclosed. The external CDP validation request subsequently completed in 5.361 seconds and passed reachability, HTTP 402 and JSON checks. Directory reputation recovery still requires successful independent probes. Next check was due by 18:16:48 JST under its two-hour tier.
 - The directory's paid-verification badges date to 20 August 2026. They are historical evidence, not proof of this release. Its on-chain figures are shared receiving-wallet totals across eight listings; do not add them together or attribute them to one endpoint.
-- Coinbase Bazaar: all 19,119 resources in the public catalogue scanned without errors; no `x402-api.fly.dev` match. Direct settlement does not submit a new indexed facilitator record. The local Bazaar schema is discoverable metadata, not a marketplace listing.
+- Coinbase Bazaar: all 19,119 resources in the public catalogue scanned without errors; no `x402-api.fly.dev` match. The current merchant lookup also returns zero resources for our receiving wallet. CDP's free validator specifically rejects x402 v1 and requires v2 for new Bazaar discovery. After a compatible migration, indexing requires a successful settlement through CDP; our existing direct settlement does not submit that record. There is no separate registration form. The local Bazaar schema is discoverable metadata, not a marketplace listing. See [Coinbase's current seller guide](https://docs.cdp.coinbase.com/x402/seller/get-discovered).
 - Official MCP Registry: `io.github.fernsugi/x402-api` is now 1.0.5, matching npm.
-- The existing [awesome-x402-servers submission, PR 7](https://github.com/fffilimonov/awesome-x402-servers/pull/7), now includes the refreshed tools, workflow demos and video release. It remains open in the upstream repository, whose maintainer controls merging.
+- The existing [awesome-x402-servers submission, PR 7](https://github.com/fffilimonov/awesome-x402-servers/pull/7), now includes the refreshed tools, workflow demos and video release. It is mergeable but remains open. Our account has only read permission on the upstream repository, whose maintainer controls merging.
 - Reddit and X posting excluded by the owner. Distribution uses GitHub releases, runnable examples, video assets and existing relevant directory submissions.
 
 ## Controlled paid verification
@@ -58,11 +58,13 @@ No revenue increase has been demonstrated from this exposure work. The earlier w
 
 ## Verification and cleanup
 
-- Eight API tests and one MCP test passed, including mocked payment signing, recipient rejection, workflow spending caps and journal behaviour.
+- Nine API tests and one MCP test passed, including mocked payment signing, recipient rejection, workflow spending caps and journal behaviour. The new wallet test deliberately hangs explorer and RPC responses, checks that available Base balances survive, and confirms an all-provider failure returns 503 before payment.
 - All eight live routes returned unpaid 402 challenges using valid example inputs. No real USDC was spent on the refreshed release.
 - All three browser workflows were checked in inspect mode. Recorded timestamps remain visible in the compact layout, with no horizontal overflow. Videos were checked for duration and representative content.
 - Temporary installed dependency folders were removed after verification; lockfiles and generated published MCP output were retained. Existing nonce data and local unpublished integration notes were preserved.
 
 For the earlier provider and payment repairs, see [REVIVAL.md](REVIVAL.md). Remaining exposure gaps are the wallet directory failure, the unindexed Bazaar resource, and the upstream community-list review. The owner excluded Reddit/X posting, additional storage and paid verification.
+
+The follow-up wallet fix is deployed as API 1.0.5. Its [external validation record](media/wallet-validation-1.0.5.json) is an unpaid reachability check, not a production payment test. Shorter provider deadlines may reduce balance coverage during slow upstream periods; the response reports unavailable chains and the six-second budget.
 
 Primary references: [Fly storage pricing](https://docs.fly.io/about/pricing/), [nohumans seller API](https://api.nohumans.directory/llms.txt), [Glama methodology](https://glama.ai/mcp/methodology), [Coinbase discovery API](https://docs.cdp.coinbase.com/api-reference/v2/rest-api/x402-facilitator/list-x402-resources).
